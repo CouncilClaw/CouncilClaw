@@ -3,9 +3,24 @@
  */
 
 import { z } from "zod";
+import { MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
 
 // TaskEnvelope validation
-export const ChannelSchema = z.enum(["telegram", "discord", "whatsapp", "slack", "email", "unknown"]);
+export const ChannelSchema = z.enum([
+  "telegram",
+  "discord",
+  "whatsapp",
+  "slack",
+  "email",
+  "teams",
+  "matrix",
+  "irc",
+  "http",
+  "grpc",
+  "cli",
+  "webhook",
+  "unknown",
+]);
 
 export const TaskEnvelopeSchema = z.object({
   id: z.string().uuid(),
@@ -35,11 +50,19 @@ export const CouncilClawConfigSchema = z.object({
         .split(",")
         .map((m) => m.trim())
         .filter(Boolean),
+    )
+    .refine(
+      (models) => models.length >= MIN_COUNCIL_MODELS && models.length <= MAX_COUNCIL_MODELS,
+      `Council must have between ${MIN_COUNCIL_MODELS} and ${MAX_COUNCIL_MODELS} models`,
     ),
   allowed_chairman_models: z
     .string()
     .optional()
-    .transform((s) => (s ? s.split(",").map((m) => m.trim()).filter(Boolean) : [])),
+    .transform((s) => (s ? s.split(",").map((m) => m.trim()).filter(Boolean) : []))
+    .refine(
+      (models) => models.length === 0 || models.length <= MAX_COUNCIL_MODELS,
+      `Allowed chairman models cannot exceed ${MAX_COUNCIL_MODELS}`,
+    ),
   allowed_shell_commands: z
     .string()
     .optional()

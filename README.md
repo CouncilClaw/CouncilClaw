@@ -61,15 +61,23 @@ curl -X POST http://localhost:8787/task \
 # Save API credentials
 npm run cli -- config set openrouter_api_key <KEY>
 
-# Set council models
-npm run cli -- config set council_models openai/gpt-4.1-mini,google/gemini-2.5-flash
+# Set council models (1-8 models, default 4)
+npm run cli -- config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
 
-# Set chairman model
-npm run cli -- config set chairman_model openai/gpt-4.1
+# Set allowed chairman models (chairman must be in council)
+npm run cli -- config set allowed_chairman_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
+
+# Override chairman model per request: use "chairmanModel" in POST /task or --chairman flag in CLI
 
 # View current config
 npm run cli -- config show
 ```
+
+**Model Selection Limits:**
+- Council models: minimum 1, maximum 8
+- You can add more models as needed, but 3-4 is optimal for balancing quality vs. cost
+- Starting with 2-3 models and adding diversity is recommended
+- Each additional model increases deliberation time (~500-1000ms per model)
 
 **Config file location:**
 - `~/.config/councilclaw/config.json`
@@ -77,23 +85,104 @@ npm run cli -- config show
 
 ## 📋 Supported Models
 
-**Default Council:**
-- `openai/gpt-4.1-mini` (fast, cost-effective)
-- `google/gemini-2.5-flash` (multimodal, fast)
+CouncilClaw supports **37 models** across **8 providers**, giving you flexibility to choose models that match your needs while respecting cost and performance constraints.
 
-**Premium Models:**
-- `openai/gpt-4.1` (highest quality)
-- `google/gemini-2.5-pro` (advanced reasoning)
-- `anthropic/claude-3.5-sonnet` (nuanced reasoning)
-- `anthropic/claude-3.7-sonnet` (improved performance)
+**Model Selection Limits:**
+- **Council Size**: 1-8 models (default: 4)
+- **Chairman Model**: Any single model from council (or override per request)
+- **Recommendation**: Start with 2-3 models, add more only if needed for diversity
 
-**Open Models:**
-- `x-ai/grok-4` (general knowledge)
-- `meta-llama/llama-3.3-70b-instruct` (instruction-tuned)
+### By Provider
 
-See full [Model Catalog](docs/ARCHITECTURE.md) for details.
+**OpenAI** (4 models)
+- `openai/gpt-4o` (premium tier)
+- `openai/gpt-4o-mini` (fast, cost-effective) ⭐ Default
+- `openai/o1-mini` (reasoning)
+- `openai/o1` (advanced reasoning)
+
+**Google** (3 models)
+- `google/gemini-2.0-flash` (fast, multimodal) ⭐ Default
+- `google/gemini-1.5-flash` (balanced)
+- `google/gemini-1.5-pro` (high quality)
+
+**Anthropic** (2 models)
+- `anthropic/claude-3.5-sonnet` (latest, nuanced)
+- `anthropic/claude-3-haiku` (fast, lightweight)
+
+**xAI** (2 models)
+- `xai/grok-3` (advanced)
+- `xai/grok-2` (general knowledge)
+
+**Meta** (4 models)
+- `meta-llama/llama-2-70b-chat`
+- `meta-llama/llama-3-8b`
+- `meta-llama/llama-3.1-8b`
+- `meta-llama/llama-3.1-70b`
+
+**Mistral** (3 models)
+- `mistral/mistral-7b`
+- `mistral/mistral-large` (premium)
+- `mistral/mixtral-8x7b` (mixture-of-experts)
+
+**Qwen** (3 models)
+- `qwen/qwen-110b` (large scale)
+- `qwen/qwen-32b` (balanced)
+- `qwen/qwen-14b` (compact)
+
+**Cohere & Others** (10 models)
+- `cohere/command-r`, `cohere/command-r-plus`
+- `together/striped-hyena-7b`
+- And 7 more alternatives
+
+**View Available Models:**
+```bash
+npm run cli -- models
+```
+
+This lists all 37 models grouped by provider with tier classification (fast/balanced/premium).
+
+See full [Model Catalog](docs/ARCHITECTURE.md) for technical specifications.
+
+## � Communication Channels
+
+Submit tasks via **13 different channels**, integrating CouncilClaw into your preferred platforms:
+
+**Enterprise Messaging:**
+- `slack` - Slack workspaces
+- `teams` - Microsoft Teams
+- `discord` - Discord servers
+- `telegram` - Telegram bots
+
+**Decentralized & Legacy:**
+- `matrix` - Matrix Protocol (decentralized chat)
+- `irc` - IRC channels (legacy support)
+
+**Direct Communication:**
+- `email` - Email deliverables
+- `whatsapp` - WhatsApp messages
+- `cli` - Command-line interface
+
+**API & Webhooks:**
+- `http` - HTTP endpoints
+- `grpc` - gRPC services
+- `webhook` - Generic webhooks
+
+**Unclassified:**
+- `unknown` - Default/unmapped channels
+
+**Example: Submit via Slack:**
+```bash
+curl -X POST http://localhost:8787/task \
+  -H "Content-Type: application/json" \
+  -d '{
+    "text": "Design notification system",
+    "channel": "slack",
+    "userId": "user-123"
+  }'
+```
 
 ## 🔌 API Documentation
+
 
 Full API reference available at [docs/API.md](docs/API.md)
 
@@ -242,6 +331,9 @@ All errors include:
 ## 🧪 Testing
 
 ```bash
+# Full quality gate (same checks as CI)
+npm run verify
+
 # Run all tests
 npm test
 
@@ -345,4 +437,3 @@ See LICENSE file.
 - [Architecture Guide](docs/ARCHITECTURE.md)
 - [Security Policy](SECURITY.md)
 - [OpenRouter Models](https://openrouter.ai/models)
-

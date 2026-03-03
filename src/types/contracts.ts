@@ -1,4 +1,17 @@
-export type Channel = "telegram" | "discord" | "whatsapp" | "slack" | "email" | "unknown";
+export type Channel = 
+  | "telegram" 
+  | "discord" 
+  | "whatsapp" 
+  | "slack" 
+  | "email" 
+  | "teams" 
+  | "matrix" 
+  | "irc" 
+  | "http" 
+  | "grpc" 
+  | "cli" 
+  | "webhook"
+  | "unknown";
 
 export interface TaskEnvelope {
   id: string;

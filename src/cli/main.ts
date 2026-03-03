@@ -3,7 +3,7 @@ import readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
-import { SUPPORTED_MODELS } from "../llm/model-catalog.js";
+import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
 import { CONFIG_PATH, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
 import { CLI_BANNER, tagline } from "./banner.js";
 
@@ -95,8 +95,26 @@ Examples:
 }
 
 function showModelShortlist(): void {
-  console.log("\nSupported models:");
-  SUPPORTED_MODELS.forEach((m, i) => console.log(`  ${i + 1}. ${m.id} (${m.tier})`));
+  console.log(`\nAvailable Models (Recommended: ${MIN_COUNCIL_MODELS}-${MAX_COUNCIL_MODELS} per council):`);
+  
+  // Group by provider
+  const modelsByProvider = new Map<string, typeof SUPPORTED_MODELS>();
+  SUPPORTED_MODELS.forEach((m) => {
+    if (!modelsByProvider.has(m.provider)) {
+      modelsByProvider.set(m.provider, []);
+    }
+    modelsByProvider.get(m.provider)!.push(m);
+  });
+
+  // Display grouped by provider
+  modelsByProvider.forEach((models, provider) => {
+    console.log(`\n  ${provider}:`);
+    models.forEach((m) => {
+      console.log(`    • ${m.id.padEnd(35)} | ${m.label.padEnd(20)} | [${m.tier}]`);
+    });
+  });
+
+  console.log(`\n  Tip: Use ${MAX_COUNCIL_MODELS} or fewer models for optimal performance`);
   console.log("");
 }
 
@@ -138,13 +156,31 @@ async function configureWizard(): Promise<void> {
   const chairman = await ask(rl, "Chairman Model", cfg.chairmanModel);
   next.chairmanModel = validateModels([chairman])[0] || cfg.chairmanModel;
 
-  const councilRaw = await ask(rl, "Council Models (comma-separated)", cfg.councilModels.join(","));
+  const councilRaw = await ask(rl, `Council Models [${MIN_COUNCIL_MODELS}-${MAX_COUNCIL_MODELS}] (comma-separated)`, cfg.councilModels.join(","));
   const councilParsed = validateModels(councilRaw.split(",").map((x) => x.trim()));
-  next.councilModels = councilParsed.length ? councilParsed : cfg.councilModels;
+  
+  if (councilParsed.length < MIN_COUNCIL_MODELS) {
+    console.log(`⚠️  Need at least ${MIN_COUNCIL_MODELS} model. Using current value.`);
+    next.councilModels = cfg.councilModels;
+  } else if (councilParsed.length > MAX_COUNCIL_MODELS) {
+    console.log(`⚠️  Maximum ${MAX_COUNCIL_MODELS} models allowed. Using first ${MAX_COUNCIL_MODELS}.`);
+    next.councilModels = councilParsed.slice(0, MAX_COUNCIL_MODELS);
+  } else {
+    next.councilModels = councilParsed;
+  }
 
-  const allowedRaw = await ask(rl, "Allowed Chairman Models (comma-separated)", cfg.allowedChairmanModels.join(","));
+  const allowedRaw = await ask(rl, `Allowed Chairman Models [max ${MAX_COUNCIL_MODELS}] (comma-separated)`, cfg.allowedChairmanModels.join(","));
   const allowedParsed = validateModels(allowedRaw.split(",").map((x) => x.trim()));
-  next.allowedChairmanModels = allowedParsed.length ? allowedParsed : cfg.allowedChairmanModels;
+  
+  if (allowedParsed.length > MAX_COUNCIL_MODELS) {
+    console.log(`⚠️  Maximum ${MAX_COUNCIL_MODELS} models allowed. Using first ${MAX_COUNCIL_MODELS}.`);
+    next.allowedChairmanModels = allowedParsed.slice(0, MAX_COUNCIL_MODELS);
+  } else if (allowedParsed.length > 0) {
+    next.allowedChairmanModels = allowedParsed;
+  } else {
+    console.log("⚠️  Using current value.");
+    next.allowedChairmanModels = cfg.allowedChairmanModels;
+  }
 
   const portRaw = await ask(rl, "Server Port", String(cfg.port));
   next.port = Number(portRaw) || cfg.port;
@@ -231,18 +267,34 @@ async function configSet(key: string, value: string): Promise<void> {
       cfg.chairmanModel = value;
       break;
     case "council_models":
-      cfg.councilModels = validateModels(value.split(",").map((v) => v.trim()));
-      if (!cfg.councilModels.length) {
+      const parsed = validateModels(value.split(",").map((v) => v.trim()));
+      if (!parsed.length) {
         console.error("Invalid council_models: no supported model IDs provided.");
         process.exit(1);
       }
+      if (parsed.length < MIN_COUNCIL_MODELS) {
+        console.error(`Invalid council_models: minimum ${MIN_COUNCIL_MODELS} model required.`);
+        process.exit(1);
+      }
+      if (parsed.length > MAX_COUNCIL_MODELS) {
+        console.error(`Invalid council_models: maximum ${MAX_COUNCIL_MODELS} models allowed. You provided ${parsed.length}.`);
+        process.exit(1);
+      }
+      cfg.councilModels = parsed;
+      console.log(`✅ Council models set to ${parsed.length} models: ${parsed.join(", ")}`);
       break;
     case "allowed_chairman_models":
-      cfg.allowedChairmanModels = validateModels(value.split(",").map((v) => v.trim()));
-      if (!cfg.allowedChairmanModels.length) {
+      const allowedParsed = validateModels(value.split(",").map((v) => v.trim()));
+      if (!allowedParsed.length) {
         console.error("Invalid allowed_chairman_models: no supported model IDs provided.");
         process.exit(1);
       }
+      if (allowedParsed.length > MAX_COUNCIL_MODELS) {
+        console.error(`Invalid allowed_chairman_models: maximum ${MAX_COUNCIL_MODELS} models allowed. You provided ${allowedParsed.length}.`);
+        process.exit(1);
+      }
+      cfg.allowedChairmanModels = allowedParsed;
+      console.log(`✅ Allowed chairman models set to ${allowedParsed.length} models: ${allowedParsed.join(", ")}`);
       break;
     default:
       console.error("Unknown key");
@@ -261,9 +313,11 @@ async function main(): Promise<void> {
 
   if (cmd === "models") {
     printHeader();
-    SUPPORTED_MODELS.forEach((m) => {
-      console.log(`${m.id} | ${m.tier} | ${m.label}`);
-    });
+    showModelShortlist();
+    console.log(`📊 Model Statistics:`);
+    console.log(`  Total available: ${SUPPORTED_MODELS.length}`);
+    console.log(`  Council size: ${MIN_COUNCIL_MODELS}-${MAX_COUNCIL_MODELS} models`);
+    console.log(`  Providers: ${new Set(SUPPORTED_MODELS.map((m) => m.provider)).size}`);
     return;
   }
 

@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { z } from "zod";
-import { SUPPORTED_MODELS } from "../llm/model-catalog.js";
+import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
 
 export interface CouncilClawSettings {
   openRouterApiKey: string;
@@ -35,9 +35,15 @@ export const DEFAULT_SETTINGS: CouncilClawSettings = {
     "openai/gpt-4.1-mini",
     "google/gemini-2.5-flash",
     "anthropic/claude-3.5-sonnet",
+    "meta-llama/llama-3.3-70b-instruct",
   ],
   chairmanModel: "openai/gpt-4.1",
-  allowedChairmanModels: ["openai/gpt-4.1", "google/gemini-2.5-pro"],
+  allowedChairmanModels: [
+    "openai/gpt-4.1",
+    "openai/gpt-4o",
+    "google/gemini-2.5-pro",
+    "anthropic/claude-3.7-sonnet",
+  ],
   port: 8787,
   tracePath: "data/council-traces.jsonl",
   allowedShellCommands: ["echo", "ls", "pwd", "cat"],
@@ -56,9 +62,9 @@ const modelIdSchema = z.string().trim().min(1).refine((m) => SUPPORTED_MODEL_IDS
 const settingsSchema = z.object({
   openRouterApiKey: z.string(),
   openRouterBaseUrl: z.string().trim().url(),
-  councilModels: z.array(modelIdSchema).min(1),
+  councilModels: z.array(modelIdSchema).min(MIN_COUNCIL_MODELS, `At least ${MIN_COUNCIL_MODELS} council model required`).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} council models allowed`),
   chairmanModel: modelIdSchema,
-  allowedChairmanModels: z.array(modelIdSchema).min(1),
+  allowedChairmanModels: z.array(modelIdSchema).min(1).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} allowed chairman models`),
   port: z.coerce.number().int().min(1).max(65535),
   tracePath: z.string().trim().min(1),
   allowedShellCommands: z.array(z.string().trim().min(1)).min(1),
