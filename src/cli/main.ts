@@ -141,13 +141,25 @@ async function configSet(key: string, value: string): Promise<void> {
       cfg.openRouterApiKey = value;
       break;
     case "chairman_model":
+      if (!validateModels([value]).length) {
+        console.error(`Invalid chairman_model: '${value}'. Use 'councilclaw models' to list supported IDs.`);
+        process.exit(1);
+      }
       cfg.chairmanModel = value;
       break;
     case "council_models":
       cfg.councilModels = validateModels(value.split(",").map((v) => v.trim()));
+      if (!cfg.councilModels.length) {
+        console.error("Invalid council_models: no supported model IDs provided.");
+        process.exit(1);
+      }
       break;
     case "allowed_chairman_models":
       cfg.allowedChairmanModels = validateModels(value.split(",").map((v) => v.trim()));
+      if (!cfg.allowedChairmanModels.length) {
+        console.error("Invalid allowed_chairman_models: no supported model IDs provided.");
+        process.exit(1);
+      }
       break;
     default:
       console.error("Unknown key");

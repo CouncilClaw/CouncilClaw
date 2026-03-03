@@ -1,6 +1,9 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
+import { WebhookPayloadSchema } from "../validation/schemas.js";
+import { logger } from "../telemetry/logger.js";
+import { ValidationError } from "../errors/index.js";
 import type { TaskEnvelope } from "../types/contracts.js";
 import { isAuthValid } from "./auth.js";
 import { checkRateLimit } from "./rate-limit.js";
@@ -12,16 +15,36 @@ interface WebhookPayload {
   chairmanModel?: string;
 }
 
+const MAX_BODY_BYTES = 1024 * 1024;
+
+class HttpError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 function readJson(req: IncomingMessage): Promise<WebhookPayload> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
-    req.on("data", (c) => chunks.push(Buffer.from(c)));
+    let size = 0;
+    req.on("data", (c: Buffer) => {
+      size += c.length;
+      if (size > MAX_BODY_BYTES) {
+        reject(new HttpError(413, "Payload too large"));
+        req.destroy();
+        return;
+      }
+      chunks.push(Buffer.from(c));
+    });
     req.on("end", () => {
       try {
         const body = Buffer.concat(chunks).toString("utf8").trim();
         resolve(body ? (JSON.parse(body) as WebhookPayload) : {});
       } catch (err) {
-        reject(err);
+        reject(new HttpError(400, "Invalid JSON payload"));
       }
     });
     req.on("error", reject);
@@ -46,15 +69,41 @@ function rateLimitConfig(): { limit: number; windowMs: number } {
   };
 }
 
+function validateWebhookPayload(payload: WebhookPayload): { userId: string; channel: TaskEnvelope["channel"]; text: string; chairmanModel?: string } {
+  try {
+    const validated = WebhookPayloadSchema.parse(payload);
+    return {
+      userId: validated.userId || "external-user",
+      channel: validated.channel || "unknown",
+      text: validated.text,
+      chairmanModel: validated.chairmanModel,
+    };
+  } catch (error) {
+    throw new ValidationError(
+      `Webhook payload validation failed: ${error instanceof Error ? error.message : String(error)}`,
+      "webhookPayload",
+      payload,
+    );
+  }
+}
+
 export function startWebhookServer(port = Number(process.env.PORT || 8787)): void {
   const server = createServer(async (req, res) => {
+    const requestId = randomUUID();
     try {
       if (req.method === "GET" && req.url === "/health") {
+        logger.debug("webhook", "Health check", { requestId });
         return send(res, 200, { ok: true, service: "councilclaw" });
       }
 
       if (req.method === "POST" && req.url === "/task") {
+        if (!String(req.headers["content-type"] || "").toLowerCase().startsWith("application/json")) {
+          logger.warn("webhook", "Invalid content type", { requestId });
+          return send(res, 415, { ok: false, error: "Content-Type must be application/json" });
+        }
+
         if (!isAuthValid(req)) {
+          logger.warn("webhook", "Authentication failed", { requestId });
           return send(res, 401, { ok: false, error: "Unauthorized" });
         }
 
@@ -62,6 +111,7 @@ export function startWebhookServer(port = Number(process.env.PORT || 8787)): voi
         const { limit, windowMs } = rateLimitConfig();
         const rl = checkRateLimit(clientIp, limit, windowMs);
         if (!rl.allowed) {
+          logger.warn("webhook", "Rate limit exceeded", { requestId, clientIp });
           return send(res, 429, {
             ok: false,
             error: "Rate limit exceeded",
@@ -71,25 +121,39 @@ export function startWebhookServer(port = Number(process.env.PORT || 8787)): voi
 
         const payload = await readJson(req);
 
-        if (!payload.text?.trim()) {
-          return send(res, 400, { ok: false, error: "Missing 'text'" });
+        // Validate payload
+        let validatedPayload: { userId: string; channel: TaskEnvelope["channel"]; text: string; chairmanModel?: string };
+        try {
+          validatedPayload = validateWebhookPayload(payload);
+        } catch (error) {
+          logger.warn("webhook", "Payload validation failed", { requestId, error: error instanceof Error ? error.message : String(error) });
+          return send(res, 400, { ok: false, error: error instanceof Error ? error.message : "Invalid payload" });
         }
 
         const task: TaskEnvelope = {
           id: randomUUID(),
-          userId: payload.userId || "external-user",
-          channel: payload.channel || "unknown",
-          text: payload.text,
+          userId: validatedPayload.userId,
+          channel: validatedPayload.channel,
+          text: validatedPayload.text,
           createdAt: new Date().toISOString(),
-          options: payload.chairmanModel ? { chairmanModel: payload.chairmanModel } : undefined,
+          options: validatedPayload.chairmanModel ? { chairmanModel: validatedPayload.chairmanModel } : undefined,
         };
 
+        logger.info("webhook", "Task received and started", { requestId, taskId: task.id, userId: task.userId });
+
         const result = await runCouncil(task);
+        logger.info("webhook", "Task completed successfully", { requestId, taskId: task.id });
         return send(res, 200, { ok: true, taskId: task.id, result });
       }
 
+      logger.debug("webhook", "Not found", { requestId, method: req.method, url: req.url });
       return send(res, 404, { ok: false, error: "Not found" });
     } catch (err) {
+      if (err instanceof HttpError) {
+        logger.warn("webhook", `HTTP error: ${err.message}`, { requestId });
+        return send(res, err.status, { ok: false, error: err.message });
+      }
+      logger.error("webhook", "Unexpected error", err instanceof Error ? err : new Error(String(err)), { requestId });
       return send(res, 500, {
         ok: false,
         error: err instanceof Error ? err.message : "Unknown server error",
@@ -98,6 +162,6 @@ export function startWebhookServer(port = Number(process.env.PORT || 8787)): voi
   });
 
   server.listen(port, () => {
-    console.log(`CouncilClaw webhook listening on http://localhost:${port}`);
+    logger.info("webhook", `CouncilClaw webhook listening on http://localhost:${port}`);
   });
 }

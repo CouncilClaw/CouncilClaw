@@ -4,13 +4,26 @@ interface Bucket {
 }
 
 const buckets = new Map<string, Bucket>();
+let lastSweepAt = 0;
 
 function now(): number {
   return Date.now();
 }
 
+function sweepExpired(ts: number): void {
+  if (ts - lastSweepAt < 10_000) return;
+  lastSweepAt = ts;
+
+  for (const [key, value] of buckets.entries()) {
+    if (ts >= value.resetAt) {
+      buckets.delete(key);
+    }
+  }
+}
+
 export function checkRateLimit(key: string, limit: number, windowMs: number): { allowed: boolean; remaining: number; resetAt: number } {
   const ts = now();
+  sweepExpired(ts);
   const existing = buckets.get(key);
 
   if (!existing || ts >= existing.resetAt) {

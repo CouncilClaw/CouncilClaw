@@ -1,7 +1,7 @@
 import type { ChairmanPlan, ChunkPlan, ModelOpinion, PeerReview, TaskEnvelope } from "../types/contracts.js";
 import type { LlmProvider } from "./provider.js";
 import { loadModelRegistry } from "./model-registry.js";
-import { ENV } from "../config/env.js";
+import { getEnv } from "../config/env.js";
 
 interface OpenRouterResponse {
   choices?: Array<{ message?: { content?: string } }>;
@@ -12,12 +12,11 @@ function sleep(ms: number): Promise<void> {
 }
 
 export class OpenRouterLlmProvider implements LlmProvider {
-  private readonly apiKey = ENV.openRouterApiKey;
-  private readonly baseUrl = ENV.openRouterBaseUrl;
   private readonly registry = loadModelRegistry();
 
   async firstOpinions(task: TaskEnvelope, chunks: ChunkPlan[]): Promise<ModelOpinion[]> {
-    if (!this.apiKey) {
+    const { openRouterApiKey: apiKey } = getEnv();
+    if (!apiKey) {
       return chunks.map((chunk, i) => ({
         proposalId: `proposal-stub-${i + 1}`,
         modelAlias: this.registry.councilModels[i % this.registry.councilModels.length] || `model-${i + 1}`,
@@ -48,7 +47,8 @@ export class OpenRouterLlmProvider implements LlmProvider {
     opinions: ModelOpinion[],
     reviews: PeerReview[],
   ): Promise<ChairmanPlan> {
-    if (!this.apiKey) return plan;
+    const { openRouterApiKey: apiKey } = getEnv();
+    if (!apiKey) return plan;
 
     const prompt = [
       "You are the Chairman model in an anonymous LLM council.",
@@ -86,14 +86,20 @@ export class OpenRouterLlmProvider implements LlmProvider {
   }
 
   private async askRaw(model: string, prompt: string): Promise<string> {
+    const env = getEnv();
+    const apiKey = env.openRouterApiKey;
+    if (!apiKey) {
+      return `Model error (${model}): missing OPENROUTER_API_KEY`;
+    }
+
     let lastError = "unknown";
 
-    for (let attempt = 0; attempt <= ENV.openRouterMaxRetries; attempt += 1) {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+    for (let attempt = 0; attempt <= env.openRouterMaxRetries; attempt += 1) {
+      const response = await fetch(`${env.openRouterBaseUrl}/chat/completions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${this.apiKey}`,
+          Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
           model,
@@ -109,8 +115,8 @@ export class OpenRouterLlmProvider implements LlmProvider {
 
       const text = await response.text();
       lastError = `${response.status} ${text.slice(0, 160)}`;
-      if (attempt < ENV.openRouterMaxRetries) {
-        await sleep(ENV.openRouterRetryBaseMs * (attempt + 1));
+      if (attempt < env.openRouterMaxRetries) {
+        await sleep(env.openRouterRetryBaseMs * (attempt + 1));
         continue;
       }
     }

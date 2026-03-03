@@ -71,6 +71,14 @@ export interface CouncilTrace {
   dissent?: string;
   selectedChairmanModel: string;
   taskType?: string;
+  timing?: {
+    decompositionMs: number;
+    firstPassMs: number;
+    reviewMs: number;
+    synthesisMs: number;
+    executionMs: number;
+    totalMs: number;
+  };
 }
 
 export interface CouncilRunResult {

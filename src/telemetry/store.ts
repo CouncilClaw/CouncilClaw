@@ -1,7 +1,7 @@
 import { mkdir, appendFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { CouncilRunResult, TaskEnvelope } from "../types/contracts.js";
-import { ENV } from "../config/env.js";
+import { getEnv } from "../config/env.js";
 
 interface TraceRecord {
   ts: string;
@@ -13,6 +13,7 @@ interface TraceRecord {
 }
 
 export async function persistTrace(task: TaskEnvelope, result: CouncilRunResult): Promise<void> {
+  const { traceStorePath } = getEnv();
   const record: TraceRecord = {
     ts: new Date().toISOString(),
     task: {
@@ -27,6 +28,6 @@ export async function persistTrace(task: TaskEnvelope, result: CouncilRunResult)
     winners: result.trace.winners,
   };
 
-  await mkdir(dirname(ENV.traceStorePath), { recursive: true });
-  await appendFile(ENV.traceStorePath, `${JSON.stringify(record)}\n`, "utf8");
+  await mkdir(dirname(traceStorePath), { recursive: true });
+  await appendFile(traceStorePath, `${JSON.stringify(record)}\n`, "utf8");
 }
