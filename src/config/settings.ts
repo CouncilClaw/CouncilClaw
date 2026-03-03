@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { z } from "zod";
@@ -18,6 +19,10 @@ export interface CouncilClawSettings {
   rateLimitPerMinute: number;
 }
 
+export interface EnsureConfigResult {
+  config: CouncilClawSettings;
+  created: boolean;
+}
 
 export const CONFIG_PATH = process.env.COUNCILCLAW_CONFIG_PATH || join(homedir(), ".config", "councilclaw", "config.json");
 
@@ -58,17 +63,32 @@ const settingsSchema: z.ZodType<CouncilClawSettings> = z.object({
   rateLimitPerMinute: z.coerce.number().int().min(1).max(100_000),
 });
 
-export async function ensureConfig(): Promise<CouncilClawSettings> {
+export async function configExists(): Promise<boolean> {
+  try {
+    await access(CONFIG_PATH, constants.F_OK);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function ensureConfigDetailed(): Promise<EnsureConfigResult> {
   await mkdir(dirname(CONFIG_PATH), { recursive: true });
   try {
-    return await loadConfig();
+    const config = await loadConfig();
+    return { config, created: false };
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
       throw err;
     }
     await saveConfig(DEFAULT_SETTINGS);
-    return DEFAULT_SETTINGS;
+    return { config: DEFAULT_SETTINGS, created: true };
   }
+}
+
+export async function ensureConfig(): Promise<CouncilClawSettings> {
+  const { config } = await ensureConfigDetailed();
+  return config;
 }
 
 export async function loadConfig(): Promise<CouncilClawSettings> {
@@ -102,7 +122,6 @@ export function applyConfigToEnv(cfg: CouncilClawSettings): void {
   process.env.COUNCILCLAW_WEBHOOK_TOKEN = cfg.webhookToken;
   process.env.COUNCILCLAW_RATE_LIMIT = String(cfg.rateLimitPerMinute);
 }
-
 
 export function validateModels(models: string[]): string[] {
   const set = new Set(SUPPORTED_MODELS.map((m) => m.id));

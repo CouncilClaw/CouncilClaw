@@ -335,3 +335,6 @@ See LICENSE file.
 - [Architecture Guide](docs/ARCHITECTURE.md)
 - [Security Policy](SECURITY.md)
 - [OpenRouter Models](https://openrouter.ai/models)
+
+## First-Time Warning
+On first run/config init, CouncilClaw prints a safety notice (execution scope + webhook token reminder), similar to OpenClaw onboarding warnings.
