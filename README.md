@@ -63,3 +63,16 @@ CouncilClaw CLI now boots with an ASCII banner + rotating tactical tagline for a
 - CI: GitHub Actions (`.github/workflows/ci.yml`)
 - Security policy: `SECURITY.md`
 - Architecture reference: `docs/ARCHITECTURE.md`
+
+## Webhook Security
+- Optional bearer auth via `COUNCILCLAW_WEBHOOK_TOKEN`
+- In-memory IP rate limiting via `COUNCILCLAW_RATE_LIMIT` per minute
+- Optional window control via `COUNCILCLAW_RATE_WINDOW_MS`
+
+Example:
+```bash
+curl -X POST http://localhost:8787/task \
+  -H "Authorization: Bearer $COUNCILCLAW_WEBHOOK_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"text\":\"build api tests\"}"
+```

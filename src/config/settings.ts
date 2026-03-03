@@ -13,7 +13,10 @@ export interface CouncilClawSettings {
   tracePath: string;
   allowedShellCommands: string[];
   execTimeoutMs: number;
+  webhookToken: string;
+  rateLimitPerMinute: number;
 }
+
 
 export const CONFIG_PATH = process.env.COUNCILCLAW_CONFIG_PATH || join(homedir(), ".config", "councilclaw", "config.json");
 
@@ -31,6 +34,8 @@ export const DEFAULT_SETTINGS: CouncilClawSettings = {
   tracePath: "data/council-traces.jsonl",
   allowedShellCommands: ["echo", "ls", "pwd", "cat"],
   execTimeoutMs: 12000,
+  webhookToken: "",
+  rateLimitPerMinute: 30,
 };
 
 export async function ensureConfig(): Promise<CouncilClawSettings> {
@@ -64,7 +69,10 @@ export function applyConfigToEnv(cfg: CouncilClawSettings): void {
   process.env.COUNCIL_TRACE_PATH = cfg.tracePath;
   process.env.ALLOWED_SHELL_COMMANDS = cfg.allowedShellCommands.join(",");
   process.env.EXEC_TIMEOUT_MS = String(cfg.execTimeoutMs);
+  process.env.COUNCILCLAW_WEBHOOK_TOKEN = cfg.webhookToken;
+  process.env.COUNCILCLAW_RATE_LIMIT = String(cfg.rateLimitPerMinute);
 }
+
 
 export function validateModels(models: string[]): string[] {
   const set = new Set(SUPPORTED_MODELS.map((m) => m.id));

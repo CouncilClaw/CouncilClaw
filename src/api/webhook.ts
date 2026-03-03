@@ -2,6 +2,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
 import type { TaskEnvelope } from "../types/contracts.js";
+import { isAuthValid } from "./auth.js";
+import { checkRateLimit } from "./rate-limit.js";
 
 interface WebhookPayload {
   userId?: string;
@@ -31,6 +33,19 @@ function send(res: ServerResponse, status: number, payload: unknown): void {
   res.end(JSON.stringify(payload));
 }
 
+function getClientIp(req: IncomingMessage): string {
+  const xff = req.headers["x-forwarded-for"];
+  if (typeof xff === "string" && xff.trim()) return xff.split(",")[0]?.trim() || "unknown";
+  return req.socket.remoteAddress || "unknown";
+}
+
+function rateLimitConfig(): { limit: number; windowMs: number } {
+  return {
+    limit: Number(process.env.COUNCILCLAW_RATE_LIMIT || 30),
+    windowMs: Number(process.env.COUNCILCLAW_RATE_WINDOW_MS || 60_000),
+  };
+}
+
 export function startWebhookServer(port = Number(process.env.PORT || 8787)): void {
   const server = createServer(async (req, res) => {
     try {
@@ -39,6 +54,21 @@ export function startWebhookServer(port = Number(process.env.PORT || 8787)): voi
       }
 
       if (req.method === "POST" && req.url === "/task") {
+        if (!isAuthValid(req)) {
+          return send(res, 401, { ok: false, error: "Unauthorized" });
+        }
+
+        const clientIp = getClientIp(req);
+        const { limit, windowMs } = rateLimitConfig();
+        const rl = checkRateLimit(clientIp, limit, windowMs);
+        if (!rl.allowed) {
+          return send(res, 429, {
+            ok: false,
+            error: "Rate limit exceeded",
+            retryAfterMs: Math.max(0, rl.resetAt - Date.now()),
+          });
+        }
+
         const payload = await readJson(req);
 
         if (!payload.text?.trim()) {
@@ -68,7 +98,6 @@ export function startWebhookServer(port = Number(process.env.PORT || 8787)): voi
   });
 
   server.listen(port, () => {
-    // eslint-disable-next-line no-console
     console.log(`CouncilClaw webhook listening on http://localhost:${port}`);
   });
 }

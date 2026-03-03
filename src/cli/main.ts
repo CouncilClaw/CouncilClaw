@@ -93,6 +93,12 @@ async function configureWizard(): Promise<void> {
   const timeoutRaw = await ask(rl, "Exec Timeout (ms)", String(cfg.execTimeoutMs));
   next.execTimeoutMs = Number(timeoutRaw) || cfg.execTimeoutMs;
 
+  next.webhookToken = await ask(rl, "Webhook Auth Token (Bearer)", cfg.webhookToken ? "********" : "");
+  if (next.webhookToken === "********") next.webhookToken = cfg.webhookToken;
+
+  const rateRaw = await ask(rl, "Rate Limit per minute", String(cfg.rateLimitPerMinute));
+  next.rateLimitPerMinute = Number(rateRaw) || cfg.rateLimitPerMinute;
+
   await saveConfig(next);
   rl.close();
 
