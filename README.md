@@ -9,15 +9,16 @@ CouncilClaw combines NanoClaw-style agent execution with LLM-council-style anony
 - **Complex tasks**: run through first opinions → blind rotated review → chairman synthesis.
 - **Execution**: run approved plan chunks and return output + council trace.
 
-## Current Status (v0.1 skeleton)
+## Current Status (v0.1)
 Implemented:
 - TypeScript project bootstrap
 - Core data contracts/interfaces
 - Complexity router heuristic
 - Task decomposer
 - Council anonymizer
-- Blind-review placeholder stage
-- Chairman synthesis placeholder
+- Blind-review scoring stage (MVP heuristic)
+- Chairman weighted synthesis logic
+- OpenRouter-ready LLM provider (auto-fallback to stub if key missing)
 - Execution stub
 - Trace builder
 
@@ -33,6 +34,8 @@ src/
   execution/
     executor.ts
   llm/
+    model-registry.ts
+    openrouter-client.ts
     provider.ts
   planning/
     decomposer.ts
@@ -56,12 +59,11 @@ npm run typecheck
 npm run build
 ```
 
-## Development Log
-- 2026-03-03: Bootstrapped TypeScript repository and pushed `main` to GitHub.
-- 2026-03-03: Added v0.1 architecture skeleton + branding image + updated README process log.
-
-## Next Steps
-1. Replace `StubLlmProvider` with OpenRouter client.
-2. Implement real chunking and dependency graph.
-3. Add weighted scoring and dissent detection in blind review.
-4. Integrate NanoClaw channel ingress + sandbox executor.
+## Environment
+```bash
+OPENROUTER_API_KEY=
+# Optional
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+COUNCIL_MODELS=openai/gpt-4.1-mini,google/gemini-2.5-flash,anthropic/claude-3.5-sonnet
+CHAIRMAN_MODEL=openai/gpt-4.1
+```
