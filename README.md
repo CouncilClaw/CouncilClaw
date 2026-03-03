@@ -24,7 +24,7 @@ Implemented:
 - LLM-based chairman rationale refinement
 - Webhook API (`POST /task`) + health endpoint (`GET /health`)
 - Persistent JSONL council trace store
-- Execution stub
+- Safe execution adapter (command-prefixed chunks) with guardrails
 
 ## Project Layout
 ```text
@@ -40,6 +40,8 @@ src/
     reviewer.ts
   execution/
     executor.ts
+    guardrails.ts
+    tool-runner.ts
   llm/
     model-registry.ts
     model-selection.ts
@@ -106,6 +108,8 @@ CHAIRMAN_MODEL=openai/gpt-4.1
 ALLOWED_CHAIRMAN_MODELS=openai/gpt-4.1,google/gemini-2.5-pro
 PORT=8787
 COUNCIL_TRACE_PATH=data/council-traces.jsonl
+ALLOWED_SHELL_COMMANDS=echo,ls,pwd,cat
+EXEC_TIMEOUT_MS=12000
 ```
 
 ## Chairman Model Authority
@@ -117,3 +121,9 @@ Selection behavior:
 1. If requested model is allowlisted, it is used.
 2. If not allowlisted, system falls back to default `CHAIRMAN_MODEL`.
 3. Fallback reason is included in council trace.
+
+## Execution Guardrails
+- Only chunk goals prefixed with `cmd:` are executed as shell commands.
+- Only allowlisted commands run (`ALLOWED_SHELL_COMMANDS`).
+- Command chaining (`&&`, `|`, `;`) is blocked.
+- Non-command chunks are treated as planning-only and marked success.
