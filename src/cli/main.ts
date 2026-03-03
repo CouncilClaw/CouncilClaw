@@ -68,29 +68,30 @@ async function acceptTerms(rl: readline.Interface): Promise<boolean> {
 
 function printUsage(): void {
   printHeader();
-  console.log(`Usage: councilclaw [command]
+  console.log(`Usage: npm run <script|cli command>
 
-Commands:
-  chat                          Start interactive council chat
-  models                        List built-in supported models
-  configure                     Interactive setup wizard
-  config init                   Create config at ${CONFIG_PATH}
-  config show                   Print current config
-  config set <key> <value>      Update config value
+🚀 Quick Start Aliases (Recommended):
+  npm run setup                 Interactive configuration wizard ⭐ Start here
+  npm run chat                  Start interactive council chat
+  npm run models                List 37 supported models by provider
 
-Config keys:
-  openrouter_api_key
-  chairman_model
-  council_models                Comma-separated model IDs
-  allowed_chairman_models       Comma-separated model IDs
+🔧 Manual CLI Commands:
+  npm run cli -- chat           Start interactive council chat
+  npm run cli -- configure      Interactive configuration wizard
+  npm run cli -- models         List supported models
+  npm run cli -- config init    Create config file
+  npm run cli -- config show    Display current configuration
+  npm run cli -- config set ... Update configuration
 
-Examples:
-  councilclaw chat
-  councilclaw models
-  councilclaw configure
-  councilclaw config init
-  councilclaw config set chairman_model openai/gpt-4.1
-  councilclaw config set council_models openai/gpt-4.1-mini,google/gemini-2.5-flash
+📝 Configuration Examples:
+  npm run cli -- config set openrouter_api_key YOUR_API_KEY
+  npm run cli -- config set chairman_model openai/gpt-4o
+  npm run cli -- config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
+  npm run cli -- config set allowed_chairman_models openai/gpt-4o,google/gemini-2.0-flash
+
+📍 Config File: ${CONFIG_PATH}
+
+💡 Tip: Use 'npm run setup' on first install for interactive guided setup!
 `);
 }
 
@@ -339,6 +340,12 @@ async function main(): Promise<void> {
     }
   }
 
+  if (cmd === "help" || cmd === "--help" || cmd === "-h") {
+    printUsage();
+    return;
+  }
+
+  // Unknown command - show usage
   printUsage();
 }
 

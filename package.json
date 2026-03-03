@@ -12,6 +12,10 @@
     "verify": "npm run typecheck && npm run test && npm run build",
     "dev:server": "COUNCILCLAW_MODE=server tsx src/index.ts",
     "cli": "tsx src/cli/main.ts",
+    "setup": "tsx src/cli/main.ts configure",
+    "chat": "tsx src/cli/main.ts chat",
+    "models": "tsx src/cli/main.ts models",
+    "config": "tsx src/cli/main.ts config",
     "test": "vitest run"
   },
   "engines": {

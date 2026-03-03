@@ -27,21 +27,30 @@ npm install
 npm run build
 ```
 
-### First-Time Setup Warning
-⚠️ **Important**: On first use, CouncilClaw will display a **Risks and Responsibilities** warning in an interactive prompt. You must explicitly accept the terms to proceed. This includes:
-
-- Command execution (shell commands via allowlist)
-- External API calls (to LLM providers)
-- Local storage of execution traces
-- Webhook API access capabilities
-
-You will be asked to type `yes` to accept the risks. This helps ensure you understand the security implications before using CouncilClaw.
+### First-Time Setup (Recommended)
+```bash
+npm run setup
+```
+This interactive wizard will guide you through:
+- Risk and responsibility acknowledgment
+- OpenRouter API key configuration
+- Model selection (1-8 models from 37 available)
+- Chairman model selection
+- Server port and other settings
 
 ### CLI Chat
 ```bash
-npm run cli -- configure    # Interactive setup wizard (includes terms acceptance)
-npm run cli -- chat         # Start interactive council chat (includes terms on first run)
-npm run cli -- models       # List supported models
+npm run setup                    # 🌟 Interactive setup wizard (Start here!)
+npm run models                   # List 37 supported models by provider
+npm run chat                     # Start interactive council chat
+```
+
+### Manual CLI Commands (Alternative Syntax)
+```bash
+npm run cli -- configure        # Interactive setup wizard
+npm run cli -- models           # List supported models  
+npm run cli -- chat             # Start interactive chat
+npm run cli -- help             # Show all available commands
 ```
 
 ### Webhook Server
