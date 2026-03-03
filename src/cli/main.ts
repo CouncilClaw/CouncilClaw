@@ -4,12 +4,64 @@ import { stdin as input, stdout as output } from "node:process";
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
 import { SUPPORTED_MODELS } from "../llm/model-catalog.js";
-import { CONFIG_PATH, applyConfigToEnv, ensureConfig, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
+import { CONFIG_PATH, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
 import { CLI_BANNER, tagline } from "./banner.js";
 
 function printHeader(): void {
   console.log(CLI_BANNER);
   console.log(`🦀 CouncilClaw CLI | ${tagline()}`);
+}
+
+function printRisksWarning(): void {
+  console.log("\n" + "=".repeat(80));
+  console.log("⚠️  IMPORTANT: RISKS AND RESPONSIBILITIES");
+  console.log("=".repeat(80));
+  console.log(`
+CouncilClaw is an LLM-powered system that:
+
+  ▸ Executes shell commands on your system (with allowlist protection)
+  ▸ Makes API calls to external LLM providers (OpenRouter, etc.)
+  ▸ Processes and stores task traces locally
+  ▸ Can be accessed via webhook API if server mode is enabled
+  ▸ Relies on LLM outputs which may produce incorrect or harmful suggestions
+
+SECURITY CONSIDERATIONS:
+  ▸ Only allowlisted shell commands will execute
+  ▸ API calls expose your OpenRouter API key to the network
+  ▸ Keep your API keys secure; rotate them regularly
+  ▸ Review execution traces in ${process.env.HOME}/.config/councilclaw/
+  ▸ Do not run untrusted input through CouncilClaw without review
+  ▸ Monitor logs (DEBUG=true) for suspicious activity
+
+DISCLAIMERS:
+  ▸ CouncilClaw is provided AS-IS without warranty
+  ▸ You are responsible for all commands executed via CouncilClaw
+  ▸ LLM outputs may be incorrect, biased, or misleading
+  ▸ Always review council decisions before accepting them
+  ▸ Do not rely on CouncilClaw for critical/sensitive operations
+
+By accepting these terms, you agree to:
+  ✓ Use CouncilClaw responsibly and securely
+  ✓ Monitor and review all execution results
+  ✓ Keep your API keys confidential
+  ✓ Accept liability for commands executed through CouncilClaw
+
+For security details, see: SECURITY.md
+` + "=".repeat(80) + "\n");
+}
+
+async function acceptTerms(rl: readline.Interface): Promise<boolean> {
+  printRisksWarning();
+  
+  const answer = (await rl.question("Do you accept these risks and agree to use CouncilClaw responsibly? (yes/no): ")).trim().toLowerCase();
+  
+  if (answer === "yes" || answer === "y") {
+    console.log("\n✅ Terms accepted. Continuing setup...\n");
+    return true;
+  } else {
+    console.log("\n❌ Setup cancelled. You did not accept the terms.");
+    process.exit(1);
+  }
 }
 
 
@@ -54,8 +106,19 @@ async function ask(rl: readline.Interface, label: string, current: string): Prom
 }
 
 async function configureWizard(): Promise<void> {
-  const cfg = await ensureConfig();
+  const { config: cfg, created: isNewConfig } = await ensureConfigDetailed();
   const rl = readline.createInterface({ input, output });
+
+  // Show terms acceptance on first configuration
+  if (isNewConfig || !cfg.termsAccepted) {
+    const accepted = await acceptTerms(rl);
+    if (!accepted) {
+      rl.close();
+      return;
+    }
+    cfg.termsAccepted = true;
+    cfg.termsAcceptedAt = new Date().toISOString();
+  }
 
   printHeader();
   console.log("\n┌ CouncilClaw configure");
@@ -101,6 +164,10 @@ async function configureWizard(): Promise<void> {
   const rateRaw = await ask(rl, "Rate Limit per minute", String(cfg.rateLimitPerMinute));
   next.rateLimitPerMinute = Number(rateRaw) || cfg.rateLimitPerMinute;
 
+  // Preserve terms acceptance
+  next.termsAccepted = cfg.termsAccepted;
+  next.termsAcceptedAt = cfg.termsAcceptedAt;
+
   await saveConfig(next);
   rl.close();
 
@@ -109,7 +176,21 @@ async function configureWizard(): Promise<void> {
 }
 
 async function chatMode(): Promise<void> {
-  const cfg = await ensureConfig();
+  const { config: cfg, created: isNewConfig } = await ensureConfigDetailed();
+  
+  // Show terms acceptance on first chat if not already accepted
+  if (isNewConfig || !cfg.termsAccepted) {
+    const rl = readline.createInterface({ input, output });
+    const accepted = await acceptTerms(rl);
+    rl.close();
+    
+    if (!accepted) return;
+    
+    cfg.termsAccepted = true;
+    cfg.termsAcceptedAt = new Date().toISOString();
+    await saveConfig(cfg);
+  }
+
   applyConfigToEnv(cfg);
 
   printHeader();

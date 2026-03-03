@@ -27,10 +27,20 @@ npm install
 npm run build
 ```
 
+### First-Time Setup Warning
+⚠️ **Important**: On first use, CouncilClaw will display a **Risks and Responsibilities** warning in an interactive prompt. You must explicitly accept the terms to proceed. This includes:
+
+- Command execution (shell commands via allowlist)
+- External API calls (to LLM providers)
+- Local storage of execution traces
+- Webhook API access capabilities
+
+You will be asked to type `yes` to accept the risks. This helps ensure you understand the security implications before using CouncilClaw.
+
 ### CLI Chat
 ```bash
-npm run cli -- configure    # Interactive setup wizard
-npm run cli -- chat         # Start interactive council chat
+npm run cli -- configure    # Interactive setup wizard (includes terms acceptance)
+npm run cli -- chat         # Start interactive council chat (includes terms on first run)
 npm run cli -- models       # List supported models
 ```
 

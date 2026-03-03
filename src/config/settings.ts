@@ -17,6 +17,8 @@ export interface CouncilClawSettings {
   execTimeoutMs: number;
   webhookToken: string;
   rateLimitPerMinute: number;
+  termsAccepted: boolean;
+  termsAcceptedAt?: string;
 }
 
 export interface EnsureConfigResult {
@@ -42,6 +44,8 @@ export const DEFAULT_SETTINGS: CouncilClawSettings = {
   execTimeoutMs: 12000,
   webhookToken: "",
   rateLimitPerMinute: 30,
+  termsAccepted: false,
+  termsAcceptedAt: undefined,
 };
 
 const SUPPORTED_MODEL_IDS = new Set(SUPPORTED_MODELS.map((m) => m.id));
@@ -49,7 +53,7 @@ const modelIdSchema = z.string().trim().min(1).refine((m) => SUPPORTED_MODEL_IDS
   message: "Unsupported model id",
 });
 
-const settingsSchema: z.ZodType<CouncilClawSettings> = z.object({
+const settingsSchema = z.object({
   openRouterApiKey: z.string(),
   openRouterBaseUrl: z.string().trim().url(),
   councilModels: z.array(modelIdSchema).min(1),
@@ -61,7 +65,12 @@ const settingsSchema: z.ZodType<CouncilClawSettings> = z.object({
   execTimeoutMs: z.coerce.number().int().min(100).max(600_000),
   webhookToken: z.string(),
   rateLimitPerMinute: z.coerce.number().int().min(1).max(100_000),
-});
+  termsAccepted: z.boolean().default(false),
+  termsAcceptedAt: z.string().datetime().optional(),
+}).transform((data) => ({
+  ...data,
+  termsAccepted: data.termsAccepted !== undefined ? data.termsAccepted : false,
+})) as z.ZodType<CouncilClawSettings>;
 
 export async function configExists(): Promise<boolean> {
   try {
