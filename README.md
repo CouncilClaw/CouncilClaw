@@ -54,3 +54,6 @@ curl http://localhost:8787/health
 
 ## Chairman Model Authority
 Users can request chairman model via payload option or inline text (`/chairman <model>`). Allowlist/fallback policy remains enforced.
+
+## CLI Banner
+CouncilClaw CLI now boots with an ASCII banner + rotating tactical tagline for a terminal-first UX similar to OpenClaw.
