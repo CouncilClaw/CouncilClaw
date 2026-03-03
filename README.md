@@ -57,3 +57,9 @@ Users can request chairman model via payload option or inline text (`/chairman <
 
 ## CLI Banner
 CouncilClaw CLI now boots with an ASCII banner + rotating tactical tagline for a terminal-first UX similar to OpenClaw.
+
+## Quality & Security
+- Test runner: `npm test` (Vitest)
+- CI: GitHub Actions (`.github/workflows/ci.yml`)
+- Security policy: `SECURITY.md`
+- Architecture reference: `docs/ARCHITECTURE.md`
