@@ -1,7 +1,8 @@
 import { runCouncil } from "./council/council-engine.js";
+import { startWebhookServer } from "./api/webhook.js";
 import type { TaskEnvelope } from "./types/contracts.js";
 
-async function main(): Promise<void> {
+async function runDemo(): Promise<void> {
   const task: TaskEnvelope = {
     id: "demo-1",
     userId: "local",
@@ -15,6 +16,15 @@ async function main(): Promise<void> {
 
   const result = await runCouncil(task);
   console.log(JSON.stringify(result, null, 2));
+}
+
+async function main(): Promise<void> {
+  if (process.env.COUNCILCLAW_MODE === "server") {
+    startWebhookServer();
+    return;
+  }
+
+  await runDemo();
 }
 
 main().catch((err) => {

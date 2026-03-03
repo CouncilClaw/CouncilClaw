@@ -21,6 +21,7 @@ Implemented:
 - User-selectable chairman model (with allowlist control)
 - OpenRouter-ready LLM provider (auto-fallback to stub if key missing)
 - LLM-based chairman rationale refinement
+- Webhook API (`POST /task`) + health endpoint (`GET /health`)
 - Execution stub
 - Trace builder
 
@@ -28,6 +29,7 @@ Implemented:
 ```text
 src/
   api/
+    webhook.ts
   council/
     anonymizer.ts
     chairman.ts
@@ -58,8 +60,32 @@ assets/
 ```bash
 npm install
 npm run dev
+npm run dev:server
 npm run typecheck
 npm run build
+```
+
+## API (server mode)
+Start server:
+```bash
+npm run dev:server
+```
+
+Health:
+```bash
+curl http://localhost:8787/health
+```
+
+Run task:
+```bash
+curl -X POST http://localhost:8787/task \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "userId":"u1",
+    "channel":"telegram",
+    "text":"/chairman google/gemini-2.5-pro build auth API and tests",
+    "chairmanModel":"google/gemini-2.5-pro"
+  }'
 ```
 
 ## Environment
@@ -70,6 +96,7 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 COUNCIL_MODELS=openai/gpt-4.1-mini,google/gemini-2.5-flash,anthropic/claude-3.5-sonnet
 CHAIRMAN_MODEL=openai/gpt-4.1
 ALLOWED_CHAIRMAN_MODELS=openai/gpt-4.1,google/gemini-2.5-pro
+PORT=8787
 ```
 
 ## Chairman Model Authority
