@@ -7,6 +7,9 @@ export interface TaskEnvelope {
   text: string;
   attachments?: string[];
   createdAt: string;
+  options?: {
+    chairmanModel?: string;
+  };
 }
 
 export interface ComplexityDecision {
@@ -21,6 +24,7 @@ export interface ChunkPlan {
   inputs: string[];
   expectedOutput: string;
   riskLevel: "low" | "medium" | "high";
+  dependsOn?: string[];
 }
 
 export interface ModelOpinion {
@@ -49,6 +53,7 @@ export interface ChairmanPlan {
   parallelGroups: string[][];
   fallbacks: string[];
   rationale: string;
+  chairmanModel: string;
 }
 
 export interface ExecutionReport {
@@ -64,6 +69,7 @@ export interface CouncilTrace {
   summary: string;
   winners: string[];
   dissent?: string;
+  selectedChairmanModel: string;
 }
 
 export interface CouncilRunResult {

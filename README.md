@@ -14,10 +14,11 @@ Implemented:
 - TypeScript project bootstrap
 - Core data contracts/interfaces
 - Complexity router heuristic
-- Task decomposer
+- Multi-chunk decomposition with dependencies
 - Council anonymizer
-- Blind-review scoring stage (MVP heuristic)
+- Blind-review scoring + dissent detection
 - Chairman weighted synthesis logic
+- **User-selectable chairman model** (with allowlist control)
 - OpenRouter-ready LLM provider (auto-fallback to stub if key missing)
 - Execution stub
 - Trace builder
@@ -35,6 +36,7 @@ src/
     executor.ts
   llm/
     model-registry.ts
+    model-selection.ts
     openrouter-client.ts
     provider.ts
   planning/
@@ -66,4 +68,15 @@ OPENROUTER_API_KEY=
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 COUNCIL_MODELS=openai/gpt-4.1-mini,google/gemini-2.5-flash,anthropic/claude-3.5-sonnet
 CHAIRMAN_MODEL=openai/gpt-4.1
+ALLOWED_CHAIRMAN_MODELS=openai/gpt-4.1,google/gemini-2.5-pro
+
+# Runtime override example:
+# CHAIRMAN_OVERRIDE=google/gemini-2.5-pro npm run dev
 ```
+
+## Chairman Model Authority
+Users can request a chairman model per task using `task.options.chairmanModel`.
+Selection behavior:
+1. If requested model is allowlisted, it is used.
+2. If not allowlisted, system falls back to default `CHAIRMAN_MODEL`.
+3. Fallback reason is included in council trace.

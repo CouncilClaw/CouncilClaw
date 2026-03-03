@@ -6,8 +6,11 @@ async function main(): Promise<void> {
     id: "demo-1",
     userId: "local",
     channel: "unknown",
-    text: "Implement CouncilClaw TypeScript MVP skeleton with blind review stage.",
+    text: "Implement parser and tests, then package release notes.",
     createdAt: new Date().toISOString(),
+    options: {
+      chairmanModel: process.env.CHAIRMAN_OVERRIDE || undefined,
+    },
   };
 
   const result = await runCouncil(task);
