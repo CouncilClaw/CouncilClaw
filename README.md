@@ -8,7 +8,7 @@
 ```bash
 npm install
 npm run build
-npm run cli -- config init
+npm run cli -- configure
 npm run cli -- models
 npm run cli -- chat
 ```
@@ -34,7 +34,7 @@ Config file path:
 - override with `COUNCILCLAW_CONFIG_PATH`
 
 ## OpenClaw-style Configuration Simplicity
-CouncilClaw now uses a central config file and command-based setup, so users do not need to edit source files to change models.
+CouncilClaw now supports an interactive `configure` wizard plus central config file workflow, so users do not need to edit source files to change models.
 
 ## Supported Models (built-in catalog)
 - openai/gpt-4.1-mini
