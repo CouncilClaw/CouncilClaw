@@ -4,7 +4,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
 import { SUPPORTED_MODELS } from "../llm/model-catalog.js";
-import { CONFIG_PATH, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
+import { CONFIG_PATH, applyConfigToEnv, ensureConfig, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
 import { CLI_BANNER, tagline } from "./banner.js";
 
 function printHeader(): void {
@@ -13,12 +13,6 @@ function printHeader(): void {
 }
 
 
-function printFirstInstallWarning(): void {
-  console.log("⚠️  First-time setup notice");
-  console.log("   CouncilClaw can execute allowlisted shell commands.");
-  console.log("   Review config before production use: councilclaw configure");
-  console.log("   Keep webhook token set if exposing /task beyond localhost.\n");
-}
 
 function printUsage(): void {
   printHeader();
@@ -115,9 +109,8 @@ async function configureWizard(): Promise<void> {
 }
 
 async function chatMode(): Promise<void> {
-  const { config: cfg, created } = await ensureConfigDetailed();
+  const cfg = await ensureConfig();
   applyConfigToEnv(cfg);
-  if (created) printFirstInstallWarning();
 
   printHeader();
   console.log("Type 'exit' to quit. Use '/chairman <model>' inline to request a chairman override.\n");
@@ -196,8 +189,7 @@ async function main(): Promise<void> {
   if (cmd === "config") {
     const sub = args[0];
     if (sub === "init") {
-      const { created } = await ensureConfigDetailed();
-      if (created) printFirstInstallWarning();
+      await ensureConfig();
       console.log(`Config initialized: ${CONFIG_PATH}`);
       return;
     }
