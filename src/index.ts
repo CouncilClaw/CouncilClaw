@@ -1,5 +1,6 @@
 import { runCouncil } from "./council/council-engine.js";
 import { startWebhookServer } from "./api/webhook.js";
+import { applyConfigToEnv, ensureConfig } from "./config/settings.js";
 import type { TaskEnvelope } from "./types/contracts.js";
 
 async function runDemo(): Promise<void> {
@@ -19,6 +20,9 @@ async function runDemo(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  const cfg = await ensureConfig();
+  applyConfigToEnv(cfg);
+
   if (process.env.COUNCILCLAW_MODE === "server") {
     startWebhookServer();
     return;
