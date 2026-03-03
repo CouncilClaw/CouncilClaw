@@ -1,14 +1,19 @@
 import type { ChairmanPlan, ChunkPlan, ModelOpinion, PeerReview, TaskEnvelope } from "../types/contracts.js";
 import type { LlmProvider } from "./provider.js";
 import { loadModelRegistry } from "./model-registry.js";
+import { ENV } from "../config/env.js";
 
 interface OpenRouterResponse {
   choices?: Array<{ message?: { content?: string } }>;
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export class OpenRouterLlmProvider implements LlmProvider {
-  private readonly apiKey = process.env.OPENROUTER_API_KEY?.trim();
-  private readonly baseUrl = process.env.OPENROUTER_BASE_URL?.trim() || "https://openrouter.ai/api/v1";
+  private readonly apiKey = ENV.openRouterApiKey;
+  private readonly baseUrl = ENV.openRouterBaseUrl;
   private readonly registry = loadModelRegistry();
 
   async firstOpinions(task: TaskEnvelope, chunks: ChunkPlan[]): Promise<ModelOpinion[]> {
@@ -22,23 +27,19 @@ export class OpenRouterLlmProvider implements LlmProvider {
       }));
     }
 
-    const opinions: ModelOpinion[] = [];
-
-    for (let i = 0; i < chunks.length; i += 1) {
-      const chunk = chunks[i];
+    const calls = chunks.map(async (chunk, i) => {
       const model = this.registry.councilModels[i % this.registry.councilModels.length];
       const content = await this.askModel(model, task, chunk);
-
-      opinions.push({
+      return {
         proposalId: `proposal-${i + 1}`,
         modelAlias: model,
         chunkId: chunk.chunkId,
         proposal: content,
         confidence: 0.7,
-      });
-    }
+      } satisfies ModelOpinion;
+    });
 
-    return opinions;
+    return Promise.all(calls);
   }
 
   async chairmanRefine(
@@ -85,26 +86,36 @@ export class OpenRouterLlmProvider implements LlmProvider {
   }
 
   private async askRaw(model: string, prompt: string): Promise<string> {
-    const response = await fetch(`${this.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.2,
-      }),
-    });
+    let lastError = "unknown";
 
-    if (!response.ok) {
+    for (let attempt = 0; attempt <= ENV.openRouterMaxRetries; attempt += 1) {
+      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          temperature: 0.2,
+        }),
+      });
+
+      if (response.ok) {
+        const data = (await response.json()) as OpenRouterResponse;
+        return data.choices?.[0]?.message?.content?.trim() || `No content from ${model}`;
+      }
+
       const text = await response.text();
-      return `Model error (${model}): ${response.status} ${text.slice(0, 200)}`;
+      lastError = `${response.status} ${text.slice(0, 160)}`;
+      if (attempt < ENV.openRouterMaxRetries) {
+        await sleep(ENV.openRouterRetryBaseMs * (attempt + 1));
+        continue;
+      }
     }
 
-    const data = (await response.json()) as OpenRouterResponse;
-    return data.choices?.[0]?.message?.content?.trim() || `No content from ${model}`;
+    return `Model error (${model}) after retries: ${lastError}`;
   }
 
   private tryParseRefinement(raw: string): { rationale?: string; fallbacks?: string[] } | null {

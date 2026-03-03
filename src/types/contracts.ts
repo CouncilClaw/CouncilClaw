@@ -70,6 +70,7 @@ export interface CouncilTrace {
   winners: string[];
   dissent?: string;
   selectedChairmanModel: string;
+  taskType?: string;
 }
 
 export interface CouncilRunResult {

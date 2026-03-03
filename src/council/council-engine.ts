@@ -7,7 +7,9 @@ import { loadModelRegistry } from "../llm/model-registry.js";
 import { resolveChairmanModel } from "../llm/model-selection.js";
 import { decomposeTask } from "../planning/decomposer.js";
 import { classifyTask } from "../router/complexity-router.js";
+import { classifyTaskType } from "../router/task-type-router.js";
 import { buildCouncilTrace } from "../telemetry/trace.js";
+import { persistTrace } from "../telemetry/store.js";
 import type { CouncilRunResult, TaskEnvelope } from "../types/contracts.js";
 
 function withChairmanOverrideFromText(task: TaskEnvelope): TaskEnvelope {
@@ -16,6 +18,7 @@ function withChairmanOverrideFromText(task: TaskEnvelope): TaskEnvelope {
 
   return {
     ...task,
+    text: task.text.replace(match[0], "").trim(),
     options: {
       ...task.options,
       chairmanModel: task.options?.chairmanModel || match[1],
@@ -26,6 +29,7 @@ function withChairmanOverrideFromText(task: TaskEnvelope): TaskEnvelope {
 export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunResult> {
   const task = withChairmanOverrideFromText(taskInput);
   const decision = classifyTask(task);
+  const taskType = classifyTaskType(task.text);
   const chunks = decomposeTask(task);
   const llm = createLlmProvider();
   const registry = loadModelRegistry();
@@ -41,6 +45,10 @@ export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunRes
 
   const reports = await executePlan(chairmanPlan);
   const trace = buildCouncilTrace(anonymous, reviews, chairman.model, dissent);
+  trace.taskType = taskType;
 
-  return { decision, chairmanPlan, reports, trace };
+  const result = { decision, chairmanPlan, reports, trace };
+  await persistTrace(task, result);
+
+  return result;
 }

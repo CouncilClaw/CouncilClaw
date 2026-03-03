@@ -13,23 +13,26 @@ CouncilClaw combines NanoClaw-style agent execution with LLM-council-style anony
 Implemented:
 - TypeScript project bootstrap
 - Core data contracts/interfaces
-- Complexity router heuristic
+- Complexity router heuristic + task-type classifier
 - Multi-chunk decomposition with dependencies
 - Council anonymizer
 - Blind-review scoring + dissent detection
 - Chairman weighted synthesis logic
 - User-selectable chairman model (with allowlist control)
 - OpenRouter-ready LLM provider (auto-fallback to stub if key missing)
+- Parallel first-opinion calls + retry/backoff for model requests
 - LLM-based chairman rationale refinement
 - Webhook API (`POST /task`) + health endpoint (`GET /health`)
+- Persistent JSONL council trace store
 - Execution stub
-- Trace builder
 
 ## Project Layout
 ```text
 src/
   api/
     webhook.ts
+  config/
+    env.ts
   council/
     anonymizer.ts
     chairman.ts
@@ -46,14 +49,18 @@ src/
     decomposer.ts
   router/
     complexity-router.ts
+    task-type-router.ts
   telemetry/
     trace.ts
+    store.ts
   types/
     contracts.ts
   index.ts
 assets/
   branding/
     councilclaw-banner.jpg
+data/
+  council-traces.jsonl
 ```
 
 ## Quick Start
@@ -91,12 +98,14 @@ curl -X POST http://localhost:8787/task \
 ## Environment
 ```bash
 OPENROUTER_API_KEY=
-# Optional
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_MAX_RETRIES=2
+OPENROUTER_RETRY_BASE_MS=500
 COUNCIL_MODELS=openai/gpt-4.1-mini,google/gemini-2.5-flash,anthropic/claude-3.5-sonnet
 CHAIRMAN_MODEL=openai/gpt-4.1
 ALLOWED_CHAIRMAN_MODELS=openai/gpt-4.1,google/gemini-2.5-pro
 PORT=8787
+COUNCIL_TRACE_PATH=data/council-traces.jsonl
 ```
 
 ## Chairman Model Authority
