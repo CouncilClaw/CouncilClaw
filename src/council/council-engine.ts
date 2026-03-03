@@ -10,7 +10,21 @@ import { classifyTask } from "../router/complexity-router.js";
 import { buildCouncilTrace } from "../telemetry/trace.js";
 import type { CouncilRunResult, TaskEnvelope } from "../types/contracts.js";
 
-export async function runCouncil(task: TaskEnvelope): Promise<CouncilRunResult> {
+function withChairmanOverrideFromText(task: TaskEnvelope): TaskEnvelope {
+  const match = task.text.match(/(?:^|\s)(?:\/chairman|chairman:)\s*([\w./:-]+)/i);
+  if (!match) return task;
+
+  return {
+    ...task,
+    options: {
+      ...task.options,
+      chairmanModel: task.options?.chairmanModel || match[1],
+    },
+  };
+}
+
+export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunResult> {
+  const task = withChairmanOverrideFromText(taskInput);
   const decision = classifyTask(task);
   const chunks = decomposeTask(task);
   const llm = createLlmProvider();
@@ -21,7 +35,10 @@ export async function runCouncil(task: TaskEnvelope): Promise<CouncilRunResult> 
   const anonymous = anonymizeOpinions(firstPass);
   const reviews = decision.label === "complex" ? runBlindReview(anonymous) : [];
   const dissent = detectDissent(reviews) || chairman.note;
-  const chairmanPlan = synthesizePlan(chunks, anonymous, reviews, chairman.model);
+
+  const draftedPlan = synthesizePlan(chunks, anonymous, reviews, chairman.model);
+  const chairmanPlan = await llm.chairmanRefine(chairman.model, draftedPlan, anonymous, reviews);
+
   const reports = await executePlan(chairmanPlan);
   const trace = buildCouncilTrace(anonymous, reviews, chairman.model, dissent);
 

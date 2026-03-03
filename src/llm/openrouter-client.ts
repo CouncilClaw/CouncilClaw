@@ -1,4 +1,4 @@
-import type { ChunkPlan, ModelOpinion, TaskEnvelope } from "../types/contracts.js";
+import type { ChairmanPlan, ChunkPlan, ModelOpinion, PeerReview, TaskEnvelope } from "../types/contracts.js";
 import type { LlmProvider } from "./provider.js";
 import { loadModelRegistry } from "./model-registry.js";
 
@@ -41,6 +41,36 @@ export class OpenRouterLlmProvider implements LlmProvider {
     return opinions;
   }
 
+  async chairmanRefine(
+    chairmanModel: string,
+    plan: ChairmanPlan,
+    opinions: ModelOpinion[],
+    reviews: PeerReview[],
+  ): Promise<ChairmanPlan> {
+    if (!this.apiKey) return plan;
+
+    const prompt = [
+      "You are the Chairman model in an anonymous LLM council.",
+      "Refine the rationale and fallback section only.",
+      "Do not change chunk IDs or execution order.",
+      "Return strict JSON with keys: rationale (string), fallbacks (string[]).",
+      `Current plan: ${JSON.stringify(plan)}`,
+      `Opinions: ${JSON.stringify(opinions)}`,
+      `Reviews: ${JSON.stringify(reviews)}`,
+    ].join("\n");
+
+    const raw = await this.askRaw(chairmanModel, prompt);
+    const parsed = this.tryParseRefinement(raw);
+    if (!parsed) return plan;
+
+    return {
+      ...plan,
+      rationale: parsed.rationale || plan.rationale,
+      fallbacks: Array.isArray(parsed.fallbacks) && parsed.fallbacks.length ? parsed.fallbacks : plan.fallbacks,
+      chairmanModel,
+    };
+  }
+
   private async askModel(model: string, task: TaskEnvelope, chunk: ChunkPlan): Promise<string> {
     const prompt = [
       "You are part of an anonymous model council.",
@@ -51,6 +81,10 @@ export class OpenRouterLlmProvider implements LlmProvider {
       "Format: 3-6 bullet points.",
     ].join("\n");
 
+    return this.askRaw(model, prompt);
+  }
+
+  private async askRaw(model: string, prompt: string): Promise<string> {
     const response = await fetch(`${this.baseUrl}/chat/completions`, {
       method: "POST",
       headers: {
@@ -71,5 +105,16 @@ export class OpenRouterLlmProvider implements LlmProvider {
 
     const data = (await response.json()) as OpenRouterResponse;
     return data.choices?.[0]?.message?.content?.trim() || `No content from ${model}`;
+  }
+
+  private tryParseRefinement(raw: string): { rationale?: string; fallbacks?: string[] } | null {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      const obj = JSON.parse(match[0]) as { rationale?: string; fallbacks?: string[] };
+      return obj;
+    } catch {
+      return null;
+    }
   }
 }

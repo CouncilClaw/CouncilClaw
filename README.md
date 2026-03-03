@@ -18,8 +18,9 @@ Implemented:
 - Council anonymizer
 - Blind-review scoring + dissent detection
 - Chairman weighted synthesis logic
-- **User-selectable chairman model** (with allowlist control)
+- User-selectable chairman model (with allowlist control)
 - OpenRouter-ready LLM provider (auto-fallback to stub if key missing)
+- LLM-based chairman rationale refinement
 - Execution stub
 - Trace builder
 
@@ -69,13 +70,13 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 COUNCIL_MODELS=openai/gpt-4.1-mini,google/gemini-2.5-flash,anthropic/claude-3.5-sonnet
 CHAIRMAN_MODEL=openai/gpt-4.1
 ALLOWED_CHAIRMAN_MODELS=openai/gpt-4.1,google/gemini-2.5-pro
-
-# Runtime override example:
-# CHAIRMAN_OVERRIDE=google/gemini-2.5-pro npm run dev
 ```
 
 ## Chairman Model Authority
-Users can request a chairman model per task using `task.options.chairmanModel`.
+Users can request a chairman model in two ways:
+1. Structured: `task.options.chairmanModel`
+2. Inline text: `/chairman <model>` or `chairman: <model>`
+
 Selection behavior:
 1. If requested model is allowlisted, it is used.
 2. If not allowlisted, system falls back to default `CHAIRMAN_MODEL`.
