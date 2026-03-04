@@ -5,7 +5,7 @@ import { stdin as input, stdout as output } from "node:process";
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
 import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
-import { CONFIG_PATH, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
+import { CONFIG_PATH, DEFAULT_SETTINGS, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
 import { CLI_BANNER, tagline } from "./banner.js";
 import { selectFromList, selectModelsHierarchically, selectChannel } from "./menu-helpers.js";
 import { initializeMemoryStore } from "../memory/index.js";
@@ -90,6 +90,27 @@ function resolveChatAnswer(rationale: string | undefined): { ok: boolean; text: 
 
 
 
+
+async function syncTelegramCommandsFromConfig(): Promise<void> {
+  const cfg = await ensureConfig();
+  const tcfg = cfg.channelConfigs.telegram;
+  const token = tcfg?.token?.trim();
+
+  if (!token) {
+    console.error("❌ Telegram token not set. Run npm run setup and configure Telegram channel first.");
+    process.exit(1);
+  }
+
+  const test = await testChannelConnection("telegram", token, cfg.telegramCommands);
+  if (!test.ok) {
+    console.error(`❌ Telegram sync failed: ${test.message}`);
+    process.exit(1);
+  }
+
+  console.log("✅ Telegram commands synced successfully.");
+  console.log(`Commands: ${cfg.telegramCommands.join(", ")}`);
+}
+
 function printUsage(): void {
   printHeader();
   console.log(`Usage: npm run <script|cli command>
@@ -106,6 +127,8 @@ function printUsage(): void {
   npm run cli -- config init    Create config file
   npm run cli -- config show    Display current configuration
   npm run cli -- config set ... Update configuration
+  npm run cli -- telegram sync-commands  Force register Telegram slash commands
+  npm run cli -- telegram show-commands  Show configured Telegram commands
 
 📝 Configuration Examples:
   npm run cli -- config set openrouter_api_key YOUR_API_KEY
@@ -551,6 +574,22 @@ async function main(): Promise<void> {
       await configSet(k, rest.join(" "));
       return;
     }
+  }
+
+
+  if (cmd === "telegram") {
+    const sub = args[0];
+    if (sub === "sync-commands") {
+      await syncTelegramCommandsFromConfig();
+      return;
+    }
+    if (sub === "show-commands") {
+      const cfg = await ensureConfig();
+      console.log(cfg.telegramCommands.join("\n"));
+      return;
+    }
+    console.log("Usage: npm run cli -- telegram <sync-commands|show-commands>");
+    return;
   }
 
   if (cmd === "help" || cmd === "--help" || cmd === "-h") {

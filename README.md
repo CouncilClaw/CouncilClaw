@@ -124,6 +124,21 @@ When you run `councilclaw chat` (or `npm run chat`), CouncilClaw displays counci
 - **💭 Dissent**: Alternative viewpoints from council members (Complex tasks only)
 - **⚠️ Errors**: Clear error messages when issues occur
 
+
+### Telegram Command Sync (if menu commands don't appear)
+```bash
+# show configured commands
+npm run cli -- telegram show-commands
+
+# force push command menu to Telegram
+npm run cli -- telegram sync-commands
+```
+
+If commands still don't show in Telegram:
+1. Open chat with your bot and send `/start`
+2. Restart Telegram app
+3. Re-run `npm run cli -- telegram sync-commands`
+
 ### Webhook Server
 ```bash
 export OPENROUTER_API_KEY="your-api-key"
