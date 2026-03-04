@@ -32,26 +32,66 @@ npm run build
 npm run setup
 ```
 This interactive wizard will guide you through:
-- Risk and responsibility acknowledgment
-- OpenRouter API key configuration
-- Model selection (1-8 models from 37 available)
-- Chairman model selection
-- Server port and other settings
+✓ **Risk acknowledgment** - Review important security/safety considerations
+✓ **OpenRouter API key** - Required to make LLM calls (get one at [openrouter.ai](https://openrouter.ai))
+✓ **Council models** - Select 1-8 models from 37 available (interactive numbered menu with provider grouping)
+✓ **Chairman model** - One model to synthesize council outputs
+✓ **Default channel** - Select communication channel (CLI, Slack, Discord, Teams, etc.)
+✓ **Server settings** - Port, webhook token, rate limits, etc.
 
-### CLI Chat
+**Interactive Menu Features:**
+- Numbered selection (type `1`, `2`, `3`, etc.)
+- Range syntax (type `1-3,7` to select models 1, 2, 3, and 7)
+- Models grouped by provider for easy browsing
+- Visual markers (● selected, ○ available)
+- Input validation with helpful error messages
+
+### CLI Commands
+
+**Start Interactive Chat:**
 ```bash
-npm run setup                    # 🌟 Interactive setup wizard (Start here!)
+npm run chat                     # Start council deliberation (requires API key)
+```
+
+**Setup & Configuration:**
+```bash
+npm run setup                    # 🌟 Interactive configuration wizard
 npm run models                   # List 37 supported models by provider
-npm run chat                     # Start interactive council chat
+npm run cli -- config show       # Display current configuration
+npm run cli -- config set <key> <value>  # Update configuration
 ```
 
-### Manual CLI Commands (Alternative Syntax)
-```bash
-npm run cli -- configure        # Interactive setup wizard
-npm run cli -- models           # List supported models  
-npm run cli -- chat             # Start interactive chat
-npm run cli -- help             # Show all available commands
+### Requirements
+- **OpenRouter API Key**: Required to use chat mode. Get one at [openrouter.ai](https://openrouter.ai)
+- Run `npm run setup` to configure before first use
+
+### Graceful Exit
+- Type `exit` in chat mode to quit normally
+- Press `Ctrl+C` for graceful exit with "Goodbye!" message (no error dumps)
+
+### Chat Interface
+
+When you run `npm run chat`, CouncilClaw displays council deliberations in a clear format:
+
 ```
+📋 openai/gpt-4.1:
+   Your detailed response from the chairman model...
+
+⏱️  4554ms (decomp: 145ms | first: 3124ms | review: 2087ms | synthesis: 1834ms)
+
+💭 Dissent: Minority opinion or alternative perspective...
+```
+
+**Output Explained:**
+- **📋 Model Name**: Chairman model that synthesized the final answer
+- **⏱️ Timing**: Total time and breakdown per deliberation phase
+- **💭 Dissent**: Alternative viewpoints from council members
+- **⚠️ Errors**: Clear error messages when issues occur
+
+**Error Handling:**
+- If no answer is available: Shows "No answer: Chairman could not synthesize a response."
+- Missing API key: Shows clear message to run `npm run setup`
+- Query errors: Displays error message with context
 
 ### Webhook Server
 ```bash

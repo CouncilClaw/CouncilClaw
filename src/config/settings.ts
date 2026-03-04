@@ -11,6 +11,7 @@ export interface CouncilClawSettings {
   councilModels: string[];
   chairmanModel: string;
   allowedChairmanModels: string[];
+  defaultChannel: string;
   port: number;
   tracePath: string;
   allowedShellCommands: string[];
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS: CouncilClawSettings = {
     "google/gemini-2.5-pro",
     "anthropic/claude-3.7-sonnet",
   ],
+  defaultChannel: "cli",
   port: 8787,
   tracePath: "data/council-traces.jsonl",
   allowedShellCommands: ["echo", "ls", "pwd", "cat"],
@@ -65,6 +67,7 @@ const settingsSchema = z.object({
   councilModels: z.array(modelIdSchema).min(MIN_COUNCIL_MODELS, `At least ${MIN_COUNCIL_MODELS} council model required`).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} council models allowed`),
   chairmanModel: modelIdSchema,
   allowedChairmanModels: z.array(modelIdSchema).min(1).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} allowed chairman models`),
+  defaultChannel: z.string().trim().min(1).default("cli"),
   port: z.coerce.number().int().min(1).max(65535),
   tracePath: z.string().trim().min(1),
   allowedShellCommands: z.array(z.string().trim().min(1)).min(1),
