@@ -6,6 +6,8 @@
 
 An intelligent LLM-powered system that combines multiple model perspectives for better decision-making. CouncilClaw uses deliberative processes—complexity routing, task decomposition, peer review, and synthesis—to deliver reliable results.
 
+> ⚠️ **Experimental Build Notice**: CouncilClaw started as a vibe-coded prototype and is still evolving quickly. Validate outputs, review execution settings, and treat this release as fast-moving software—not a finalized enterprise platform.
+
 ## ✨ Features
 
 - **Multi-Model Consensus**: Harness opinions from multiple LLMs (OpenAI, Google, Anthropic, xAI, Meta)
@@ -33,24 +35,25 @@ npm run setup
 ```
 This interactive wizard will guide you through:
 ✓ **Risk acknowledgment** - Review important security/safety considerations
-✓ **OpenRouter API key** - Required to make LLM calls (get one at [openrouter.ai](https://openrouter.ai))
-✓ **Council models** - Select 1-8 models from 37 available (interactive numbered menu with provider grouping)
-✓ **Chairman model** - One model to synthesize council outputs
+✓ **OpenRouter API key** - Optional for setup; enables live model calls (get one at [openrouter.ai](https://openrouter.ai))
+✓ **Council models** - Select 1-8 models from the catalog
+✓ **Chairman model** - Selected from the chosen council models only
 ✓ **Default channel** - Select communication channel (CLI, Slack, Discord, Teams, etc.)
 ✓ **Server settings** - Port, webhook token, rate limits, etc.
+✓ **Terms acceptance** - Required on first setup; optional review on later runs
 
 **Interactive Menu Features:**
-- Numbered selection (type `1`, `2`, `3`, etc.)
-- Range syntax (type `1-3,7` to select models 1, 2, 3, and 7)
+- Keyboard navigation in TTY: `↑/↓` to move, `Space` to select/unselect, `Enter` to confirm
+- Single-choice menus (chairman/channel): `↑/↓` + `Enter`
+- Multi-select menu (council models): `↑/↓` + `Space` + `Enter`
+- Non-TTY fallback supports number/range input (`1-3,7`)
 - Models grouped by provider for easy browsing
-- Visual markers (● selected, ○ available)
-- Input validation with helpful error messages
 
 ### CLI Commands
 
 **Start Interactive Chat:**
 ```bash
-npm run chat                     # Start council deliberation (requires API key)
+npm run chat                     # Start council deliberation
 ```
 
 **Setup & Configuration:**
@@ -62,7 +65,7 @@ npm run cli -- config set <key> <value>  # Update configuration
 ```
 
 ### Requirements
-- **OpenRouter API Key**: Required to use chat mode. Get one at [openrouter.ai](https://openrouter.ai)
+- **OpenRouter API Key**: Optional. Without it, chat runs in offline/stub mode.
 - Run `npm run setup` to configure before first use
 
 ### Graceful Exit
@@ -89,8 +92,9 @@ When you run `npm run chat`, CouncilClaw displays council deliberations in a cle
 - **⚠️ Errors**: Clear error messages when issues occur
 
 **Error Handling:**
-- If no answer is available: Shows "No answer: Chairman could not synthesize a response."
-- Missing API key: Shows clear message to run `npm run setup`
+- If no answer is available: Shows `No answer` plus a reason/details line
+- If chairman fails: automatically attempts fallback to another council model and reports the switch
+- Missing API key: chat still works in offline/stub mode and tells you why
 - Query errors: Displays error message with context
 
 ### Webhook Server

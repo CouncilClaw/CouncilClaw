@@ -115,7 +115,7 @@ export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunRes
     });
 
     // Persistence
-    const trace = buildCouncilTrace(anonymous, reviews, chairman.model, dissent);
+    const trace = buildCouncilTrace(anonymous, reviews, chairmanPlan.chairmanModel, dissent);
     trace.taskType = taskType;
     trace.timing = {
       decompositionMs,

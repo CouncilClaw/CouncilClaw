@@ -6,7 +6,7 @@ import { runCouncil } from "../council/council-engine.js";
 import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
 import { CONFIG_PATH, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
 import { CLI_BANNER, tagline } from "./banner.js";
-import { selectMultipleModels, selectChannel } from "./menu-helpers.js";
+import { selectFromList, selectMultipleModels, selectChannel } from "./menu-helpers.js";
 
 function printHeader(): void {
   console.log(CLI_BANNER);
@@ -63,6 +63,27 @@ async function acceptTerms(rl: readline.Interface): Promise<boolean> {
     console.log("\n❌ Setup cancelled. You did not accept the terms.");
     process.exit(1);
   }
+}
+
+function cleanupOnSigint(rl: readline.Interface, message: string): () => void {
+  const handler = (): void => {
+    console.log(`\n${message}`);
+    rl.close();
+    process.exit(0);
+  };
+  process.once("SIGINT", handler);
+  return () => process.off("SIGINT", handler);
+}
+
+function resolveChatAnswer(rationale: string | undefined): { ok: boolean; text: string; reason?: string } {
+  const msg = rationale?.trim() || "";
+  if (!msg) {
+    return { ok: false, text: "", reason: "Chairman returned an empty rationale." };
+  }
+  if (/model error|no content|failed/i.test(msg)) {
+    return { ok: false, text: msg, reason: "Chairman synthesis did not produce a usable answer." };
+  }
+  return { ok: true, text: msg };
 }
 
 
@@ -128,23 +149,30 @@ async function ask(rl: readline.Interface, label: string, current: string): Prom
 async function configureWizard(): Promise<void> {
   const { config: cfg, created: isNewConfig } = await ensureConfigDetailed();
   const rl = readline.createInterface({ input, output });
+  const detachSigint = cleanupOnSigint(rl, "Goodbye.");
 
-  // Graceful Ctrl+C handling
-  process.once("SIGINT", () => {
-    console.log("\n✋ Setup cancelled.");
-    rl.close();
-    process.exit(0);
-  });
-
-  // Show terms acceptance on first configuration
+  // Show terms acceptance on first configuration (or if not accepted yet)
   if (isNewConfig || !cfg.termsAccepted) {
     const accepted = await acceptTerms(rl);
     if (!accepted) {
+      detachSigint();
       rl.close();
       return;
     }
     cfg.termsAccepted = true;
     cfg.termsAcceptedAt = new Date().toISOString();
+  } else {
+    const reviewTerms = (await rl.question("Review and re-accept risk terms now? (y/N): ")).trim().toLowerCase();
+    if (reviewTerms === "y" || reviewTerms === "yes") {
+      const accepted = await acceptTerms(rl);
+      if (!accepted) {
+        detachSigint();
+        rl.close();
+        return;
+      }
+      cfg.termsAccepted = true;
+      cfg.termsAcceptedAt = new Date().toISOString();
+    }
   }
 
   printHeader();
@@ -161,17 +189,25 @@ async function configureWizard(): Promise<void> {
   if (next.openRouterApiKey === "********") {
     next.openRouterApiKey = cfg.openRouterApiKey;
   } else if (!next.openRouterApiKey || next.openRouterApiKey.trim() === "") {
-    console.log("⚠️  OpenRouter API key is required. Using current value.");
-    next.openRouterApiKey = cfg.openRouterApiKey;
+    console.log("ℹ️  No API key configured. Chat will run in local stub mode until you add one.");
+    next.openRouterApiKey = "";
   }
 
   next.openRouterBaseUrl = await ask(rl, "OpenRouter Base URL", cfg.openRouterBaseUrl);
+  if (!next.openRouterBaseUrl.trim()) {
+    next.openRouterBaseUrl = "https://openrouter.ai/api/v1";
+    console.log("ℹ️  Empty base URL replaced with default: https://openrouter.ai/api/v1");
+  }
 
-  const chairman = await ask(rl, "Chairman Model", cfg.chairmanModel);
-  next.chairmanModel = validateModels([chairman])[0] || cfg.chairmanModel;
-
-  // Interactive council model selection
+  // Interactive council model selection (keyboard selection)
   next.councilModels = await selectMultipleModels(rl, "Select Council Models", MIN_COUNCIL_MODELS, MAX_COUNCIL_MODELS, cfg.councilModels);
+
+  // Chairman selection constrained to selected council models.
+  const currentChairman = next.councilModels.includes(cfg.chairmanModel) ? cfg.chairmanModel : next.councilModels[0];
+  next.chairmanModel = await selectFromList(rl, "Select Chairman Model", next.councilModels, currentChairman);
+  if (!next.councilModels.includes(next.chairmanModel)) {
+    next.chairmanModel = currentChairman;
+  }
 
   const allowedRaw = await ask(rl, `Allowed Chairman Models [max ${MAX_COUNCIL_MODELS}] (comma-separated)`, cfg.allowedChairmanModels.join(","));
   const allowedParsed = validateModels(allowedRaw.split(",").map((x) => x.trim()));
@@ -202,7 +238,7 @@ async function configureWizard(): Promise<void> {
   if (next.webhookToken === "********") next.webhookToken = cfg.webhookToken;
 
   // Interactive channel selection
-  next.defaultChannel = await selectChannel(rl);
+  next.defaultChannel = await selectChannel(rl, cfg.defaultChannel);
 
   const rateRaw = await ask(rl, "Rate Limit per minute", String(cfg.rateLimitPerMinute));
   next.rateLimitPerMinute = Number(rateRaw) || cfg.rateLimitPerMinute;
@@ -212,6 +248,7 @@ async function configureWizard(): Promise<void> {
   next.termsAcceptedAt = cfg.termsAcceptedAt;
 
   await saveConfig(next);
+  detachSigint();
   rl.close();
 
   console.log("\n✅ Configuration saved.");
@@ -220,13 +257,6 @@ async function configureWizard(): Promise<void> {
 
 async function chatMode(): Promise<void> {
   const { config: cfg, created: isNewConfig } = await ensureConfigDetailed();
-  
-  // Validate required fields before starting chat
-  if (!cfg.openRouterApiKey || cfg.openRouterApiKey.trim() === "") {
-    console.error("\n❌ Error: OpenRouter API key not configured.");
-    console.error("   Run 'npm run setup' to configure your API key.\n");
-    process.exit(1);
-  }
 
   // Show terms acceptance on first chat if not already accepted
   if (isNewConfig || !cfg.termsAccepted) {
@@ -244,20 +274,22 @@ async function chatMode(): Promise<void> {
   applyConfigToEnv(cfg);
 
   printHeader();
+  if (!cfg.openRouterApiKey?.trim()) {
+    console.log("ℹ️  Running without OPENROUTER_API_KEY. Responses may be stubbed/local only.");
+  }
   console.log("Type 'exit' to quit. Use '/chairman <model>' inline to request a chairman override.\n");
 
   const rl = readline.createInterface({ input, output });
-  
-  // Graceful Ctrl+C handling
-  const sigintHandler = () => {
-    console.log("\n✋ Goodbye!");
-    rl.close();
-    process.exit(0);
-  };
-  process.once("SIGINT", sigintHandler);
+  const detachSigint = cleanupOnSigint(rl, "Goodbye.");
 
   while (true) {
-    const text = (await rl.question("you> ")).trim();
+    let text = "";
+    try {
+      text = (await rl.question("you> ")).trim();
+    } catch {
+      console.log("\nGoodbye.");
+      break;
+    }
     if (!text || text.toLowerCase() === "exit") break;
     
     try {
@@ -268,13 +300,17 @@ async function chatMode(): Promise<void> {
         text,
         createdAt: new Date().toISOString(),
       });
-      
-      // Format and display council response
-      if (result.chairmanPlan.rationale) {
-        console.log(`\n📋 ${result.trace.selectedChairmanModel}:`);
-        console.log(`   ${result.chairmanPlan.rationale}`);
+
+      const answer = resolveChatAnswer(result.chairmanPlan.rationale);
+      const chairmanUsed = result.chairmanPlan.chairmanModel || result.trace.selectedChairmanModel;
+
+      if (answer.ok) {
+        console.log(`\n📋 ${chairmanUsed}:`);
+        console.log(`   ${answer.text}`);
       } else {
-        console.log("\n⚠️  No answer: Chairman could not synthesize a response.");
+        console.log(`\n⚠️  No answer from ${chairmanUsed}.`);
+        if (answer.reason) console.log(`   Reason: ${answer.reason}`);
+        if (answer.text) console.log(`   Details: ${answer.text}`);
       }
       
       // Show timing and metadata
@@ -294,6 +330,7 @@ async function chatMode(): Promise<void> {
       console.log(`\n❌ Error: ${errorMsg}\n`);
     }
   }
+  detachSigint();
   rl.close();
 }
 

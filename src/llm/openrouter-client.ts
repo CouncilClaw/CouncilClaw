@@ -48,7 +48,12 @@ export class OpenRouterLlmProvider implements LlmProvider {
     reviews: PeerReview[],
   ): Promise<ChairmanPlan> {
     const { openRouterApiKey: apiKey } = getEnv();
-    if (!apiKey) return plan;
+    if (!apiKey) {
+      return {
+        ...plan,
+        rationale: `${plan.rationale} (offline mode: OPENROUTER_API_KEY is missing, using draft synthesis)`,
+      };
+    }
 
     const prompt = [
       "You are the Chairman model in an anonymous LLM council.",
@@ -62,13 +67,45 @@ export class OpenRouterLlmProvider implements LlmProvider {
 
     const raw = await this.askRaw(chairmanModel, prompt);
     const parsed = this.tryParseRefinement(raw);
-    if (!parsed) return plan;
+    if (parsed) {
+      return {
+        ...plan,
+        rationale: parsed.rationale || plan.rationale,
+        fallbacks: Array.isArray(parsed.fallbacks) && parsed.fallbacks.length ? parsed.fallbacks : plan.fallbacks,
+        chairmanModel,
+      };
+    }
+
+    if (!this.isModelFailure(raw)) {
+      return plan;
+    }
+
+    const fallbackModel = this.registry.councilModels.find((m) => m !== chairmanModel);
+    if (!fallbackModel) {
+      return {
+        ...plan,
+        rationale: `No answer: chairman '${chairmanModel}' failed and no fallback model is available. Reason: ${raw}`,
+      };
+    }
+
+    const fallbackRaw = await this.askRaw(fallbackModel, prompt);
+    const fallbackParsed = this.tryParseRefinement(fallbackRaw);
+    if (!fallbackParsed) {
+      return {
+        ...plan,
+        chairmanModel: fallbackModel,
+        rationale: `No answer: chairman '${chairmanModel}' failed (${raw}). Fallback '${fallbackModel}' also failed (${fallbackRaw}).`,
+      };
+    }
 
     return {
       ...plan,
-      rationale: parsed.rationale || plan.rationale,
-      fallbacks: Array.isArray(parsed.fallbacks) && parsed.fallbacks.length ? parsed.fallbacks : plan.fallbacks,
-      chairmanModel,
+      rationale: `Chairman '${chairmanModel}' failed (${raw}). Switched to fallback '${fallbackModel}'. ${fallbackParsed.rationale || plan.rationale}`,
+      fallbacks:
+        Array.isArray(fallbackParsed.fallbacks) && fallbackParsed.fallbacks.length
+          ? fallbackParsed.fallbacks
+          : plan.fallbacks,
+      chairmanModel: fallbackModel,
     };
   }
 
@@ -133,5 +170,10 @@ export class OpenRouterLlmProvider implements LlmProvider {
     } catch {
       return null;
     }
+  }
+
+  private isModelFailure(raw: string): boolean {
+    const normalized = raw.toLowerCase();
+    return normalized.includes("model error") || normalized.includes("no content");
   }
 }
