@@ -4,6 +4,8 @@
 
 **CouncilClaw: Multi-model deliberation, single-agent execution.**
 
+**Repository:** https://github.com/CouncilClaw/CouncilClaw
+
 An intelligent LLM-powered system that combines multiple model perspectives for better decision-making. CouncilClaw uses deliberative processes—complexity routing, task decomposition, peer review, and synthesis—to deliver reliable results.
 
 > ⚠️ **Experimental Build Notice**: CouncilClaw started as a vibe-coded prototype merging ideas from [nanoclaw](https://github.com/qwibitai/nanoclaw) (lightweight agent execution) and [llm-council](https://github.com/karpauer/llm-council) (multi-model deliberation). The project is still evolving quickly. Validate outputs, review execution settings, and treat this release as fast-moving software—not a finalized enterprise platform. Think of it as exploring the intersection of efficient task execution with consensus-driven decision-making.
@@ -11,6 +13,8 @@ An intelligent LLM-powered system that combines multiple model perspectives for 
 ## 🚀 TL;DR - Get Started in 2 Minutes
 
 ```bash
+git clone https://github.com/CouncilClaw/CouncilClaw.git
+cd CouncilClaw
 npm install && npm run setup
 npm run chat
 # Type your question → Council deliberates → Get answer ✨
@@ -37,6 +41,8 @@ npm run chat
 
 ### Installation
 ```bash
+git clone https://github.com/CouncilClaw/CouncilClaw.git
+cd CouncilClaw
 npm install
 npm run build
 ```

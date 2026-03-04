@@ -1,10 +1,12 @@
 # CouncilClaw Quick Reference Card
 
+**Repository:** https://github.com/CouncilClaw/CouncilClaw
+
 ## First Time Setup (2 minutes)
 
 ```bash
 # Step 1: Clone and install
-git clone <repo> && cd CouncilClaw
+git clone https://github.com/CouncilClaw/CouncilClaw.git && cd CouncilClaw
 npm install
 
 # Step 2: Run interactive setup
@@ -41,7 +43,7 @@ npm run chat
 # → Copy key from Dashboard → Keys
 ```
 
-**Need detailed help?** → See [docs/OPENROUTER_SETUP.md](../docs/OPENROUTER_SETUP.md)
+**Need detailed help?** → See [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md)
 
 ## Core Commands
 
@@ -135,9 +137,9 @@ Press `Ctrl+C` for graceful exit with "Goodbye!" message.
 |------|---------|
 | [openrouter.ai](https://openrouter.ai) | Create account, get API key |
 | [openrouter.ai/dashboard](https://openrouter.ai/dashboard) | View usage, billing, keys |
-| [docs/ARCHITECTURE.md](../docs/ARCHITECTURE.md) | Learn how CouncilClaw works |
-| [docs/MEMORY.md](../docs/MEMORY.md) | Learn about memory system |
-| [docs/OPENROUTER_SETUP.md](../docs/OPENROUTER_SETUP.md) | Detailed OpenRouter setup |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Learn how CouncilClaw works |
+| [docs/MEMORY.md](docs/MEMORY.md) | Learn about memory system |
+| [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md) | Detailed OpenRouter setup |
 
 ## Troubleshooting Checklist
 
@@ -281,4 +283,4 @@ npm run cli -- config show
 
 **Quick Start:** `npm run setup` → `npm run chat` → Done! 🚀
 
-For detailed OpenRouter setup, see [docs/OPENROUTER_SETUP.md](../docs/OPENROUTER_SETUP.md)
+For detailed OpenRouter setup, see [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md)
