@@ -7,10 +7,14 @@
 ```bash
 # Step 1: Clone and install
 git clone https://github.com/CouncilClaw/CouncilClaw.git && cd CouncilClaw
-npm install
+npm install && npm run build
 
-# Step 2: Run interactive setup
-npm run setup
+# Step 2: Optionally install globally for easier access
+npm install -g .
+
+# Step 3: Run interactive setup
+councilclaw setup
+# (or: npm run setup)
 
 # You'll be guided through:
 # ✓ Risk acknowledgment
@@ -19,23 +23,27 @@ npm run setup
 # ✓ Chairman model selection
 # ✓ Communication channels (CLI, Slack, Discord, etc.)
 
-# Step 3: Start using
-npm run chat
+# Step 4: Start using
+councilclaw chat
+# (or: npm run chat)
 ```
 
 ## OpenRouter API Key (Quick Setup)
 
 ```bash
 # Option A: During interactive setup
-npm run setup
+councilclaw setup
+# (or: npm run setup)
 # → Paste your key when prompted
 
 # Option B: After setup
-npm run cli -- config set openrouter_api_key sk-or-xxx...
+councilclaw config set openrouter_api_key sk-or-xxx...
+# (or: npm run cli -- config set openrouter_api_key sk-or-xxx...)
 
 # Option C: Environment variable
 export OPENROUTER_API_KEY=sk-or-xxx...
-npm run chat
+councilclaw chat
+# (or: npm run chat)
 
 # Get your free API key:
 # → Visit https://openrouter.ai
@@ -48,36 +56,42 @@ npm run chat
 ## Core Commands
 
 ```bash
-# Start interactive chat
+# Using councilclaw command (recommended)
+councilclaw chat                     # Start interactive chat
+councilclaw setup                    # Interactive wizard (full setup)
+councilclaw config show              # Display current config
+councilclaw config set key value     # Set a config value
+councilclaw models                   # List 37 available models
+
+# Using npm run (alternative, from project directory)
 npm run chat
+npm run setup
+npm run cli -- config show
+npm run cli -- config set key value
+npm run models
 
-# Configure
-npm run setup                           # Interactive wizard (full setup)
-npm run cli -- config show              # Display current config
-npm run cli -- config set key value     # Set a config value
-
-# Information
-npm run models                          # List 37 available models
-npm run build                           # Build TypeScript
-npm run typecheck                       # Check types
-npm run test                            # Run tests
-
-# Server mode
-npm run dev:server                      # Start webhook API server
-npm run dev                             # Development mode
+# Build and development
+npm run build                        # Build TypeScript
+npm run typecheck                    # Check types
+npm run test                         # Run tests
+npm run dev:server                   # Start webhook API server
+npm run dev                          # Development mode
 ```
 
 ## Common Configuration
 
 ```bash
 # Set API key
-npm run cli -- config set openrouter_api_key YOUR_KEY_HERE
+councilclaw config set openrouter_api_key YOUR_KEY_HERE
+# (or: npm run cli -- config set openrouter_api_key YOUR_KEY_HERE)
 
 # Set council models (1-8)
-npm run cli -- config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
+councilclaw config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
+# (or: npm run cli -- config set council_models ...)
 
 # Set chairman model
-npm run cli -- config set chairman_model openai/gpt-4o-mini
+councilclaw config set chairman_model openai/gpt-4o-mini
+# (or: npm run cli -- config set chairman_model ...)
 
 # View current config
 npm run cli -- config show

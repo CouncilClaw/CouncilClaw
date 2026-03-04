@@ -6,7 +6,7 @@ import { runCouncil } from "../council/council-engine.js";
 import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
 import { CONFIG_PATH, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
 import { CLI_BANNER, tagline } from "./banner.js";
-import { selectFromList, selectMultipleModels, selectChannel } from "./menu-helpers.js";
+import { selectFromList, selectModelsHierarchically, selectChannel } from "./menu-helpers.js";
 import { initializeMemoryStore } from "../memory/index.js";
 
 function printHeader(): void {
@@ -21,14 +21,14 @@ function printRisksWarning(): void {
   console.log(`
 CouncilClaw is an LLM-powered system that:
 
-  ▸ Executes shell commands on your system (with allowlist protection)
+  ▸ Executes shell commands on your system (with blocklist protection)
   ▸ Makes API calls to external LLM providers (OpenRouter, etc.)
   ▸ Processes and stores task traces locally
   ▸ Can be accessed via webhook API if server mode is enabled
   ▸ Relies on LLM outputs which may produce incorrect or harmful suggestions
 
 SECURITY CONSIDERATIONS:
-  ▸ Only allowlisted shell commands will execute
+  ▸ Dangerous shell commands are blocked by a safety policy
   ▸ API calls expose your OpenRouter API key to the network
   ▸ Keep your API keys secure; rotate them regularly
   ▸ Review execution traces in ${process.env.HOME}/.config/councilclaw/
@@ -110,7 +110,6 @@ function printUsage(): void {
   npm run cli -- config set openrouter_api_key YOUR_API_KEY
   npm run cli -- config set chairman_model openai/gpt-4o
   npm run cli -- config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
-  npm run cli -- config set allowed_chairman_models openai/gpt-4o,google/gemini-2.0-flash
 
 📍 Config File: ${CONFIG_PATH}
 
@@ -147,12 +146,32 @@ async function ask(rl: readline.Interface, label: string, current: string): Prom
   return ans || current;
 }
 
+function printConfigSummary(cfg: CouncilClawSettings): void {
+  const models = cfg.councilModels.length > 0 ? cfg.councilModels.join(", ") : "None";
+  const chairman = cfg.chairmanModel || "None";
+  const channels = Object.entries(cfg.channelConfigs)
+    .filter(([_, c]) => c.enabled)
+    .map(([id]) => id)
+    .join(", ");
+
+  console.log("\n◇  Existing config detected ──────────╮");
+  console.log(`│                                     │`);
+  console.log(`│  Config path: ${CONFIG_PATH.replace(process.env.HOME || "", "~")}`);
+  console.log(`│  API Base: ${cfg.openRouterBaseUrl}      `);
+  console.log(`│  Council: ${cfg.councilModels.length} models (${cfg.councilModels[0]?.slice(0, 15)}...)`);
+  console.log(`│  Chairman: ${chairman}                `);
+  console.log(`│  Default Channel: ${cfg.defaultChannel}    `);
+  console.log(`│  Active Channels: ${channels || "CLI only"} `);
+  console.log(`│                                     │`);
+  console.log("├─────────────────────────────────────╯");
+}
+
 async function configureWizard(): Promise<void> {
   const { config: cfg, created: isNewConfig } = await ensureConfigDetailed();
   const rl = readline.createInterface({ input, output });
   const detachSigint = cleanupOnSigint(rl, "Goodbye.");
 
-  // Show terms acceptance on first configuration (or if not accepted yet)
+  // Show terms acceptance on first configuration
   if (isNewConfig || !cfg.termsAccepted) {
     const accepted = await acceptTerms(rl);
     if (!accepted) {
@@ -165,74 +184,94 @@ async function configureWizard(): Promise<void> {
   }
 
   printHeader();
-  console.log("\n┌ CouncilClaw Setup Wizard");
-  console.log(`│ Config path: ${CONFIG_PATH}`);
-  console.log("│ Press Enter to keep current value.");
-  console.log("└");
 
-  const next: CouncilClawSettings = { ...cfg };
-
-  // --- SECTION 1: API Configuration ---
-  console.log("\n--- [1/4] API Configuration ---");
-  next.openRouterApiKey = await ask(rl, "OpenRouter API Key", cfg.openRouterApiKey ? "********" : "");
-  if (next.openRouterApiKey === "********") {
-    next.openRouterApiKey = cfg.openRouterApiKey;
-  }
-  next.openRouterBaseUrl = await ask(rl, "OpenRouter Base URL", cfg.openRouterBaseUrl);
-
-  // --- SECTION 2: Council & Chairman Models ---
-  console.log("\n--- [2/4] Model Selection ---");
-  next.councilModels = await selectMultipleModels(rl, "Select Council Models", MIN_COUNCIL_MODELS, MAX_COUNCIL_MODELS, cfg.councilModels);
-
-  const currentChairman = next.councilModels.includes(cfg.chairmanModel) ? cfg.chairmanModel : next.councilModels[0];
-  next.chairmanModel = await selectFromList(rl, "Select Primary Chairman Model", next.councilModels, currentChairman);
-  
-  // Use all selected council models as allowed chairman models (for rotation/fallback)
-  next.allowedChairmanModels = [...next.councilModels];
-
-  // --- SECTION 3: Channels ---
-  console.log("\n--- [3/4] Channel Setup ---");
-  const selectedChannelId = await selectChannel(rl, cfg.defaultChannel);
-  next.defaultChannel = selectedChannelId;
-
-  // Configure selected channel
-  if (selectedChannelId !== "cli") {
-    console.log(`\nConfiguring ${selectedChannelId} channel...`);
-    const chanCfg = next.channelConfigs[selectedChannelId] || { enabled: true };
-    chanCfg.enabled = true;
-    
-    if (["slack", "discord", "telegram", "whatsapp"].includes(selectedChannelId)) {
-      chanCfg.token = await ask(rl, `${selectedChannelId.toUpperCase()} Token/API Key`, chanCfg.token ? "********" : "");
-      if (chanCfg.token === "********") chanCfg.token = cfg.channelConfigs[selectedChannelId]?.token;
-    }
-    
-    if (selectedChannelId === "webhook" || selectedChannelId === "http") {
-      chanCfg.webhookUrl = await ask(rl, "Webhook/Target URL", chanCfg.webhookUrl || "");
-    }
-    
-    next.channelConfigs[selectedChannelId] = chanCfg;
+  if (isNewConfig) {
+    console.log("\n🚀 Welcome to CouncilClaw! Let's get you set up.");
+    await runOnboarding(rl, cfg);
+  } else {
+    printConfigSummary(cfg);
+    await runReconfiguration(rl, cfg);
   }
 
-  // --- SECTION 4: System Settings ---
-  console.log("\n--- [4/4] System Settings ---");
-  const portRaw = await ask(rl, "Server Port", String(cfg.port));
-  next.port = Number(portRaw) || cfg.port;
-
-  const cmds = await ask(rl, "Allowed Shell Commands (comma-separated)", cfg.allowedShellCommands.join(","));
-  next.allowedShellCommands = cmds.split(",").map((x) => x.trim()).filter(Boolean);
-
-  const timeoutRaw = await ask(rl, "Exec Timeout (ms)", String(cfg.execTimeoutMs));
-  next.execTimeoutMs = Number(timeoutRaw) || cfg.execTimeoutMs;
-
-  next.webhookToken = await ask(rl, "Internal Webhook Token", cfg.webhookToken ? "********" : "");
-  if (next.webhookToken === "********") next.webhookToken = cfg.webhookToken;
-
-  await saveConfig(next);
   detachSigint();
   rl.close();
+}
 
-  console.log("\n✅ Configuration complete!");
-  console.log(`Path: ${CONFIG_PATH}`);
+async function runOnboarding(rl: readline.Interface, cfg: CouncilClawSettings): Promise<void> {
+  console.log("\n--- [1/2] API Configuration ---");
+  cfg.openRouterApiKey = await ask(rl, "OpenRouter API Key", "");
+  
+  console.log("\n--- [2/2] Model Selection ---");
+  cfg.councilModels = await selectModelsHierarchically(rl, "Select Initial Council Models", []);
+  if (cfg.councilModels.length > 0) {
+    cfg.chairmanModel = cfg.councilModels[0];
+    cfg.allowedChairmanModels = [...cfg.councilModels];
+  }
+
+  await saveConfig(cfg);
+  console.log("\n✅ Onboarding complete! Use 'npm run setup' again to customize further.");
+}
+
+async function runReconfiguration(rl: readline.Interface, cfg: CouncilClawSettings): Promise<void> {
+  const sections = [
+    "API & Workspace",
+    "Model Council",
+    "Channels",
+    "System & Safety",
+    "Done & Exit"
+  ];
+
+  while (true) {
+    const choiceIdx = await selectFromList(rl, "Select sections to configure", sections);
+    const section = sections.find((_, i) => sections[i] === choiceIdx);
+
+    if (section === "Done & Exit" || !section) break;
+
+    if (section === "API & Workspace") {
+      cfg.openRouterApiKey = await ask(rl, "OpenRouter API Key", cfg.openRouterApiKey ? "********" : "");
+      if (cfg.openRouterApiKey === "********") cfg.openRouterApiKey = (await ensureConfig()).openRouterApiKey;
+      cfg.openRouterBaseUrl = await ask(rl, "OpenRouter Base URL", cfg.openRouterBaseUrl);
+    } 
+    else if (section === "Model Council") {
+      cfg.councilModels = await selectModelsHierarchically(rl, "Configure Council Models", cfg.councilModels);
+      if (cfg.councilModels.length > 0) {
+        const currentChairman = cfg.councilModels.includes(cfg.chairmanModel) ? cfg.chairmanModel : cfg.councilModels[0];
+        cfg.chairmanModel = await selectFromList(rl, "Select Primary Chairman Model", cfg.councilModels, currentChairman);
+        cfg.allowedChairmanModels = [...cfg.councilModels];
+      }
+    } 
+    else if (section === "Channels") {
+      const selectedChannelId = await selectChannel(rl, cfg.defaultChannel);
+      cfg.defaultChannel = selectedChannelId;
+      
+      if (selectedChannelId !== "cli") {
+        console.log(`\nConfiguring ${selectedChannelId} channel...`);
+        const chanCfg = cfg.channelConfigs[selectedChannelId] || { enabled: true };
+        chanCfg.enabled = true;
+        
+        if (["slack", "discord", "telegram", "whatsapp"].includes(selectedChannelId)) {
+          chanCfg.token = await ask(rl, `${selectedChannelId.toUpperCase()} Token/API Key`, chanCfg.token ? "********" : "");
+          if (chanCfg.token === "********") chanCfg.token = (await ensureConfig()).channelConfigs[selectedChannelId]?.token;
+        }
+        cfg.channelConfigs[selectedChannelId] = chanCfg;
+      }
+    } 
+    else if (section === "System & Safety") {
+      const portRaw = await ask(rl, "Server Port", String(cfg.port));
+      cfg.port = Number(portRaw) || cfg.port;
+
+      const blockedRaw = await ask(rl, "Blocked Shell Commands", cfg.blockedShellCommands.join(","));
+      cfg.blockedShellCommands = blockedRaw.split(",").map((x) => x.trim()).filter(Boolean);
+
+      const telegramCmdsRaw = await ask(rl, "Telegram Bot Commands", cfg.telegramCommands.join(","));
+      cfg.telegramCommands = telegramCmdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
+    }
+
+    await saveConfig(cfg);
+    console.log(`\n✅ ${section} updated.`);
+  }
+
+  console.log("\n✅ Configuration saved.");
 }
 
 async function chatMode(): Promise<void> {
@@ -338,29 +377,21 @@ async function configSet(key: string, value: string): Promise<void> {
         console.error("Invalid council_models: no supported model IDs provided.");
         process.exit(1);
       }
-      if (parsed.length < MIN_COUNCIL_MODELS) {
-        console.error(`Invalid council_models: minimum ${MIN_COUNCIL_MODELS} model required.`);
-        process.exit(1);
-      }
       if (parsed.length > MAX_COUNCIL_MODELS) {
         console.error(`Invalid council_models: maximum ${MAX_COUNCIL_MODELS} models allowed. You provided ${parsed.length}.`);
         process.exit(1);
       }
       cfg.councilModels = parsed;
+      cfg.allowedChairmanModels = [...parsed];
       console.log(`✅ Council models set to ${parsed.length} models: ${parsed.join(", ")}`);
       break;
-    case "allowed_chairman_models":
-      const allowedParsed = validateModels(value.split(",").map((v) => v.trim()));
-      if (!allowedParsed.length) {
-        console.error("Invalid allowed_chairman_models: no supported model IDs provided.");
-        process.exit(1);
-      }
-      if (allowedParsed.length > MAX_COUNCIL_MODELS) {
-        console.error(`Invalid allowed_chairman_models: maximum ${MAX_COUNCIL_MODELS} models allowed. You provided ${allowedParsed.length}.`);
-        process.exit(1);
-      }
-      cfg.allowedChairmanModels = allowedParsed;
-      console.log(`✅ Allowed chairman models set to ${allowedParsed.length} models: ${allowedParsed.join(", ")}`);
+    case "blocked_shell_commands":
+      cfg.blockedShellCommands = value.split(",").map(v => v.trim()).filter(Boolean);
+      console.log(`✅ Blocked commands updated: ${cfg.blockedShellCommands.join(", ")}`);
+      break;
+    case "telegram_commands":
+      cfg.telegramCommands = value.split(",").map(v => v.trim()).filter(Boolean);
+      console.log(`✅ Telegram commands updated: ${cfg.telegramCommands.join(", ")}`);
       break;
     default:
       console.error("Unknown key");
@@ -389,7 +420,7 @@ async function main(): Promise<void> {
     showModelShortlist();
     console.log(`📊 Model Statistics:`);
     console.log(`  Total available: ${SUPPORTED_MODELS.length}`);
-    console.log(`  Council size: ${MIN_COUNCIL_MODELS}-${MAX_COUNCIL_MODELS} models`);
+    console.log(`  Council size: up to ${MAX_COUNCIL_MODELS} models`);
     console.log(`  Providers: ${new Set(SUPPORTED_MODELS.map((m) => m.provider)).size}`);
     return;
   }

@@ -25,7 +25,8 @@ export interface CouncilClawSettings {
   channelConfigs: Record<string, ChannelConfig>;
   port: number;
   tracePath: string;
-  allowedShellCommands: string[];
+  blockedShellCommands: string[];
+  telegramCommands: string[];
   execTimeoutMs: number;
   webhookToken: string;
   rateLimitPerMinute: number;
@@ -43,19 +44,9 @@ export const CONFIG_PATH = process.env.COUNCILCLAW_CONFIG_PATH || join(homedir()
 export const DEFAULT_SETTINGS: CouncilClawSettings = {
   openRouterApiKey: "",
   openRouterBaseUrl: "https://openrouter.ai/api/v1",
-  councilModels: [
-    "openai/gpt-4.1-mini",
-    "google/gemini-2.5-flash",
-    "anthropic/claude-3.5-sonnet",
-    "meta-llama/llama-3.3-70b-instruct",
-  ],
-  chairmanModel: "openai/gpt-4.1",
-  allowedChairmanModels: [
-    "openai/gpt-4.1",
-    "openai/gpt-4o",
-    "google/gemini-2.5-pro",
-    "anthropic/claude-3.7-sonnet",
-  ],
+  councilModels: [],
+  chairmanModel: "",
+  allowedChairmanModels: [],
   defaultChannel: "cli",
   channelConfigs: {
     cli: { enabled: true },
@@ -66,7 +57,29 @@ export const DEFAULT_SETTINGS: CouncilClawSettings = {
   },
   port: 8787,
   tracePath: "data/council-traces.jsonl",
-  allowedShellCommands: ["echo", "ls", "pwd", "cat", "mkdir", "touch", "cp", "mv", "grep", "find"],
+  blockedShellCommands: ["rm", "mv", "shutdown", "reboot", "format", "mkfs"],
+  telegramCommands: [
+    "/start",
+    "/council",
+    "/help",
+    "/commands",
+    "/status",
+    "/new",
+    "/session",
+    "/reset",
+    "/stop",
+    "/chairman",
+    "/model",
+    "/models",
+    "/thinking",
+    "/t",
+    "/verbose",
+    "/v",
+    "/context",
+    "/whoami",
+    "/usage",
+    "/compact",
+  ],
   execTimeoutMs: 12000,
   webhookToken: "",
   rateLimitPerMinute: 30,
@@ -75,7 +88,7 @@ export const DEFAULT_SETTINGS: CouncilClawSettings = {
 };
 
 const SUPPORTED_MODEL_IDS = new Set(SUPPORTED_MODELS.map((m) => m.id));
-const modelIdSchema = z.string().trim().min(1).refine((m) => SUPPORTED_MODEL_IDS.has(m), {
+const modelIdSchema = z.string().trim().min(1).refine((m) => SUPPORTED_MODEL_IDS.has(m) || m === "", {
   message: "Unsupported model id",
 });
 
@@ -92,14 +105,15 @@ const channelConfigSchema = z.object({
 const settingsSchema = z.object({
   openRouterApiKey: z.string(),
   openRouterBaseUrl: z.string().trim().url(),
-  councilModels: z.array(modelIdSchema).min(MIN_COUNCIL_MODELS, `At least ${MIN_COUNCIL_MODELS} council model required`).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} council models allowed`),
+  councilModels: z.array(modelIdSchema).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} council models allowed`),
   chairmanModel: modelIdSchema,
-  allowedChairmanModels: z.array(modelIdSchema).min(1).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} allowed chairman models`),
+  allowedChairmanModels: z.array(modelIdSchema).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} allowed chairman models`),
   defaultChannel: z.string().trim().min(1).default("cli"),
   channelConfigs: z.record(channelConfigSchema).default({}),
   port: z.coerce.number().int().min(1).max(65535),
   tracePath: z.string().trim().min(1),
-  allowedShellCommands: z.array(z.string().trim().min(1)).min(1),
+  blockedShellCommands: z.array(z.string().trim().min(1)).default([]),
+  telegramCommands: z.array(z.string().trim().min(1)).default([]),
   execTimeoutMs: z.coerce.number().int().min(100).max(600_000),
   webhookToken: z.string(),
   rateLimitPerMinute: z.coerce.number().int().min(1).max(100_000),
@@ -164,7 +178,8 @@ export function applyConfigToEnv(cfg: CouncilClawSettings): void {
   process.env.ALLOWED_CHAIRMAN_MODELS = cfg.allowedChairmanModels.join(",");
   process.env.PORT = String(cfg.port);
   process.env.COUNCIL_TRACE_PATH = cfg.tracePath;
-  process.env.ALLOWED_SHELL_COMMANDS = cfg.allowedShellCommands.join(",");
+  process.env.BLOCKED_SHELL_COMMANDS = cfg.blockedShellCommands.join(",");
+  process.env.TELEGRAM_COMMANDS = cfg.telegramCommands.join(",");
   process.env.EXEC_TIMEOUT_MS = String(cfg.execTimeoutMs);
   process.env.COUNCILCLAW_WEBHOOK_TOKEN = cfg.webhookToken;
   process.env.COUNCILCLAW_RATE_LIMIT = String(cfg.rateLimitPerMinute);

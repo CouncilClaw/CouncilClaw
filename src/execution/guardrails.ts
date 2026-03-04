@@ -3,7 +3,7 @@ export interface GuardrailDecision {
   reason?: string;
 }
 
-const BLOCKLIST = ["rm", "mv", "shutdown", "reboot", "format", "mkfs"];
+const BLOCKLIST = ["shutdown", "reboot", "format", "mkfs"];
 const DANGEROUS_PATTERNS = [
   /\brm\s+-[rf]{1,2}\s+\//, // rm -rf /
   /\brm\s+-[rf]{1,2}\s+\*/, // rm -rf *
@@ -18,22 +18,38 @@ export function checkCommandPolicy(command: string): GuardrailDecision {
   if (!trimmed) return { allowed: false, reason: "Empty command" };
 
   const firstToken = trimmed.split(/\s+/)[0] || "";
+  
+  // Load user-defined blocked commands from environment
+  const userBlocked = process.env.BLOCKED_SHELL_COMMANDS?.split(",").map(s => s.trim()).filter(Boolean) || [];
 
-  // Check against blocklist for the primary command
+  // Check against core blocklist
   if (BLOCKLIST.includes(firstToken)) {
-    // Special case: allow rm if it's NOT recursive or force on sensitive paths
-    if (firstToken === "rm") {
-      if (trimmed.includes("-r") || trimmed.includes("-f") || trimmed.includes("-rf")) {
-         return {
-           allowed: false,
-           reason: "Recursive or forced 'rm' is blocked for safety. Use specific file paths without -r/-f.",
-         };
-      }
-    } else {
-      return {
+    return {
+      allowed: false,
+      reason: `Command '${firstToken}' is in the core safety blocklist.`,
+    };
+  }
+
+  // Check against user-defined blocked commands
+  if (userBlocked.includes(firstToken)) {
+     return {
         allowed: false,
-        reason: `Command '${firstToken}' is in the safety blocklist.`,
-      };
+        reason: `Command '${firstToken}' is blocked by your configuration.`,
+     };
+  }
+
+  // Check if any blocked command appears anywhere in a chained command
+  for (const blocked of [...BLOCKLIST, ...userBlocked]) {
+    const pattern = new RegExp(`\\b${blocked}\\b`);
+    if (pattern.test(trimmed)) {
+       if (blocked === "rm") {
+          // Special case: rm is only blocked if recursive/forced via patterns below
+          continue;
+       }
+       return {
+         allowed: false,
+         reason: `Blocked command '${blocked}' detected in command string.`,
+       };
     }
   }
 

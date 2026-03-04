@@ -15,7 +15,7 @@ describe("guardrails", () => {
   it("blocks dangerous recursive rm", () => {
     const out = checkCommandPolicy("rm -rf /");
     expect(out.allowed).toBe(false);
-    expect(out.reason).toContain("blocked for safety");
+    expect(out.reason).toContain("dangerous pattern");
   });
 
   it("blocks dangerous pattern in chain", () => {

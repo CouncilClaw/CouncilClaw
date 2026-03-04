@@ -4,34 +4,19 @@
 
 **CouncilClaw: Multi-model deliberation, single-agent execution.**
 
-**Repository:** https://github.com/CouncilClaw/CouncilClaw
-
 An intelligent LLM-powered system that combines multiple model perspectives for better decision-making. CouncilClaw uses deliberative processes—complexity routing, task decomposition, peer review, and synthesis—to deliver reliable results.
 
-> ⚠️ **Experimental Build Notice**: CouncilClaw started as a vibe-coded prototype merging ideas from [nanoclaw](https://github.com/qwibitai/nanoclaw) (lightweight agent execution) and [llm-council](https://github.com/karpauer/llm-council) (multi-model deliberation). The project is still evolving quickly. Validate outputs, review execution settings, and treat this release as fast-moving software—not a finalized enterprise platform. Think of it as exploring the intersection of efficient task execution with consensus-driven decision-making.
-
-## 🚀 TL;DR - Get Started in 2 Minutes
-
-```bash
-git clone https://github.com/CouncilClaw/CouncilClaw.git
-cd CouncilClaw
-npm install && npm run setup
-npm run chat
-# Type your question → Council deliberates → Get answer ✨
-```
-
-**First time?** See [QUICK_START.md](QUICK_START.md) for commands and [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md) for API key setup.
+> ⚠️ **Experimental Build Notice**: CouncilClaw started as a vibe-coded prototype and is still evolving quickly. Validate outputs, review execution settings, and treat this release as fast-moving software—not a finalized enterprise platform.
 
 ## ✨ Features
 
 - **Multi-Model Consensus**: Harness opinions from multiple LLMs (OpenAI, Google, Anthropic, xAI, Meta)
-- **🧠 Intelligent Memory System**: Automatically learns from decisions, preferences, and constraints to improve future deliberations
 - **Simple Task Routing**: Skip full council deliberation for simple tasks (like `mkdir` or `ls`), letting the Chairman handle them directly for speed and cost efficiency.
 - **Complexity Routing**: Automatically route simple vs. complex tasks to appropriate deliberation pipelines
 - **Task Decomposition**: Break complex requests into manageable, parallel-executable chunks
 - **Blind Peer Review**: Anonymous model critiques detect flawed proposals before execution
 - **Chairman Synthesis**: A designated model synthesizes diverse opinions into a coherent plan
-- **Permissive Shell Execution**: Execute any shell command with safety guardrails that block dangerous patterns (like `rm -rf /`).
+- **Permissive Shell Execution**: Execute any shell command with safety guardrails that block dangerous patterns (like `rm -rf /`) and user-defined blocked commands.
 - **Telemetry & Traces**: Comprehensive execution traces with timing metrics for every phase
 - **CLI & Webhook API**: Interactive chat and programmatic task submission
 - **Input Validation**: Zod-based schemas ensure data integrity across API boundaries
@@ -41,26 +26,45 @@ npm run chat
 
 ### Installation
 ```bash
-git clone https://github.com/CouncilClaw/CouncilClaw.git
-cd CouncilClaw
 npm install
 npm run build
 ```
 
+### Using CouncilClaw Commands
+
+After building, you can use the `councilclaw` command directly:
+
+```bash
+# Use councilclaw command (recommended)
+councilclaw setup
+councilclaw chat
+councilclaw models
+
+# Or use npm run (alternative, from project directory)
+npm run setup
+npm run chat
+npm run models
+```
+
+If `councilclaw` command isn't found, install globally:
+```bash
+npm install -g .
+```
+
 ### First-Time Setup (Recommended)
 ```bash
-npm run setup
+councilclaw setup
 ```
 This interactive wizard (inspired by OpenClaw) will guide you through:
 ✓ **Risk acknowledgment** - Review important security/safety considerations
 ✓ **[1/4] API Configuration** - Set OpenRouter API key and base URL
-✓ **[2/4] Model Selection** - Select Council models and a Primary Chairman
+✓ **[2/4] Model Selection** - Hierarchical selection (Provider → Versions)
 ✓ **[3/4] Channel Setup** - Select and configure communication channels (Slack, Discord, etc.)
-✓ **[4/4] System Settings** - Port, shell command timeout, and webhook tokens
+✓ **[4/4] System Settings** - Port, blocked commands, and telegram bot commands
 
 **Interactive Menu Features:**
 - Keyboard navigation in TTY: `↑/↓` to move, `Space` to select/unselect, `Enter` to confirm
-- Grouped configuration steps for a cleaner experience
+- **Hierarchical Model Selection**: Select by Provider (e.g., OpenAI, Google) then choose specific versions.
 - Automatic derivation of allowed chairman models from your council selection
 - Specific sub-wizards for configuring external channels like Telegram or Discord
 
@@ -68,68 +72,34 @@ This interactive wizard (inspired by OpenClaw) will guide you through:
 
 **Start Interactive Chat:**
 ```bash
-npm run chat                     # Start council deliberation
+councilclaw chat                     # Start council deliberation
 ```
 
 **Setup & Configuration:**
 ```bash
-npm run setup                    # 🌟 Interactive configuration wizard (Grouped Mode)
-npm run models                   # List 37 supported models by provider
-npm run cli -- config show       # Display current configuration
-npm run cli -- config set <key> <value>  # Update configuration
-```
-### Quick OpenRouter Setup (if not done during `npm run setup`)
-
-```bash
-# 1. Get your API key from https://openrouter.ai
-# 2. Set it in CouncilClaw:
-npm run cli -- config set openrouter_api_key sk-or-YOUR-KEY-HERE
-
-# 3. Test it works:
-npm run chat
-you> What is 2+2?  # Should see real council responses
+councilclaw setup                    # 🌟 Interactive configuration wizard (Grouped Mode)
+councilclaw models                   # List 37 supported models by provider
+councilclaw config show              # Display current configuration
+councilclaw config set <key> <value> # Update configuration
 ```
 
-**Need detailed setup help?** → See [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md)
-
-### Running Without an API Key (Offline/Stub Mode)
-
-You can use CouncilClaw without an OpenRouter API key:
-
+**Alternative (using npm from project directory):**
 ```bash
 npm run chat
-you> Design a REST API
-
-📋 openai/gpt-4o:
-   Stub response (no OPENROUTER_API_KEY) for REST API design...
-
-ℹ️  Running without OPENROUTER_API_KEY. Responses may be stubbed/local only.
+npm run setup
+npm run models
+npm run cli -- config show
+npm run cli -- config set <key> <value>
 ```
 
-**When to use offline mode:**
-- ✅ Testing/learning CouncilClaw without costs
-- ✅ Understanding the UI and workflow
-- ✅ Developing locally before production
-- ❌ Getting real AI-powered recommendations
+**Manual Configuration Keys:**
+- `blocked_shell_commands`: Comma-separated list of commands to block.
+- `telegram_commands`: Comma-separated list of commands for the Telegram bot.
+- `council_models`: Comma-separated list of model IDs.
 
-**To upgrade from offline to online:**
-1. Get your API key from [openrouter.ai](https://openrouter.ai)
-2. Run `npm run cli -- config set openrouter_api_key YOUR_KEY`
-3. Restart chat - real responses will work immediately!
 ### Requirements
 - **OpenRouter API Key**: Optional. Without it, chat runs in offline/stub mode.
-  
-  📖 **New to OpenRouter?** Choose your learning style:
-  - **[🚀 Quick Start](QUICK_START.md)** - Commands and cheat sheet
-  - **[📚 Step-by-Step Setup](docs/OPENROUTER_SETUP.md)** - Detailed guide with troubleshooting
-  - **[🎨 Visual Guide](docs/OPENROUTER_VISUAL_GUIDE.md)** - Diagrams and flowcharts
-  
-  Get your free API key in 3 steps:
-  1. Sign up at [openrouter.ai](https://openrouter.ai)
-  2. Copy your key from Dashboard → Keys
-  3. Run `npm run cli -- config set openrouter_api_key YOUR_KEY`
-
-- Run `npm run setup` to configure before first use
+- Run `councilclaw setup` (or `npm run setup`) to configure before first use
 
 ### Graceful Exit
 - Type `exit` in chat mode to quit normally
@@ -137,7 +107,7 @@ you> Design a REST API
 
 ### Chat Interface
 
-When you run `npm run chat`, CouncilClaw displays council deliberations in a clear format. For **simple tasks**, it skips the multi-model deliberation phase to save time:
+When you run `councilclaw chat` (or `npm run chat`), CouncilClaw displays council deliberations in a clear format. For **simple tasks**, it skips the multi-model deliberation phase to save time:
 
 ```
 [INFO] Simple task detected - skipping council opinions
@@ -154,30 +124,6 @@ When you run `npm run chat`, CouncilClaw displays council deliberations in a cle
 - **💭 Dissent**: Alternative viewpoints from council members (Complex tasks only)
 - **⚠️ Errors**: Clear error messages when issues occur
 
-### Memory System
-
-CouncilClaw includes an intelligent **memory system** that learns from your interactions to provide increasingly better recommendations:
-
-**How Memory Works:**
-- **Automatic Learning**: Extracts decisions, preferences, and constraints from every council run
-- **Context Injection**: Provides accumulated wisdom to council members for better-informed decisions
-- **Session Continuity**: Maintains conversation history for multi-turn interactions
-- **User Profiles**: Learns your preferred technologies, working style, and past decisions
-- **Progressive Enhancement**: Recommendations improve as the system learns more about you
-
-**Example Memory Benefits:**
-```
-First query: "How should I structure a web app?"
-→ Generic recommendations
-
-Fifth query: "Best way to handle auth?"
-→ Recommends approach aligned with your previous choices (e.g., JWT since you chose it before)
-
-Tenth query: Remembers patterns, avoids past errors, respects all your constraints
-```
-
-**Learn More:** See [docs/MEMORY.md](docs/MEMORY.md) for detailed memory system documentation and usage examples.
-
 ### Webhook Server
 ```bash
 export OPENROUTER_API_KEY="your-api-key"
@@ -193,19 +139,19 @@ curl -X POST http://localhost:8787/task \
 ### Configuration
 ```bash
 # Save API credentials
-npm run cli -- config set openrouter_api_key <KEY>
+councilclaw config set openrouter_api_key <KEY>
 
-# Set council models (1-8 models, default 4)
-npm run cli -- config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
+# Set council models
+councilclaw config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
 
 # Override chairman model per request: use "chairmanModel" in POST /task or --chairman flag in CLI
 
 # View current config
-npm run cli -- config show
+councilclaw config show
 ```
 
 **Model Selection Limits:**
-- Council models: minimum 1, maximum 8
+- Council models: minimum 0 (though reasoning requires models), maximum 8
 - Chairman model is automatically picked from the council
 - Starting with 2-3 models and adding diversity is recommended
 - Each additional model increases deliberation time (~500-1000ms per model for complex tasks)
@@ -219,62 +165,47 @@ npm run cli -- config show
 CouncilClaw supports **37 models** across **8 providers**, giving you flexibility to choose models that match your needs while respecting cost and performance constraints.
 
 **Model Selection Limits:**
-- **Council Size**: 1-8 models (default: 4)
+- **Council Size**: Up to 8 models
 - **Chairman Model**: Any single model from council (or override per request)
 - **Recommendation**: Start with 2-3 models, add more only if needed for diversity
 
 ### By Provider
 
-**OpenAI** (4 models)
-- `openai/gpt-4o` (premium tier)
-- `openai/gpt-4o-mini` (fast, cost-effective) ⭐ Default
-- `openai/o1-mini` (reasoning)
-- `openai/o1` (advanced reasoning)
+**OpenAI** (6 models)
+- `openai/gpt-4.1-mini`, `openai/gpt-4.1`, `openai/gpt-4o`, `openai/gpt-4o-mini`, `openai/o1-mini`, `openai/o1`
 
-**Google** (3 models)
-- `google/gemini-2.0-flash` (fast, multimodal) ⭐ Default
-- `google/gemini-1.5-flash` (balanced)
-- `google/gemini-1.5-pro` (high quality)
+**Google** (5 models)
+- `google/gemini-2.5-flash`, `google/gemini-2.5-pro`, `google/gemini-2.0-flash`, `google/gemini-1.5-flash`, `google/gemini-1.5-pro`
 
-**Anthropic** (2 models)
-- `anthropic/claude-3.5-sonnet` (latest, nuanced)
-- `anthropic/claude-3-haiku` (fast, lightweight)
+**Anthropic** (4 models)
+- `anthropic/claude-3.5-sonnet`, `anthropic/claude-3.7-sonnet`, `anthropic/claude-3-opus`, `anthropic/claude-3-haiku`
 
-**xAI** (2 models)
-- `xai/grok-3` (advanced)
-- `xai/grok-2` (general knowledge)
+**xAI** (3 models)
+- `x-ai/grok-4`, `x-ai/grok-3`, `x-ai/grok-2`
 
-**Meta** (4 models)
-- `meta-llama/llama-2-70b-chat`
-- `meta-llama/llama-3-8b`
-- `meta-llama/llama-3.1-8b`
-- `meta-llama/llama-3.1-70b`
+**Meta** (6 models)
+- `meta-llama/llama-2-70b-chat`, `meta-llama/llama-3-8b`, `meta-llama/llama-3-70b`, `meta-llama/llama-3.1-8b`, `meta-llama/llama-3.1-70b`, `meta-llama/llama-3.3-70b`
 
 **Mistral** (3 models)
-- `mistral/mistral-7b`
-- `mistral/mistral-large` (premium)
-- `mistral/mixtral-8x7b` (mixture-of-experts)
+- `mistralai/mistral-7b`, `mistralai/mistral-large`, `mistralai/mixtral-8x7b`
 
 **Qwen** (3 models)
-- `qwen/qwen-110b` (large scale)
-- `qwen/qwen-32b` (balanced)
-- `qwen/qwen-14b` (compact)
+- `qwen/qwen-110b`, `qwen/qwen-32b`, `qwen/qwen-14b`
 
-**Cohere & Others** (10 models)
-- `cohere/command-r`, `cohere/command-r-plus`
-- `together/striped-hyena-7b`
-- And 7 more alternatives
+**Cohere & Others** (7 models)
+- `cohere/command-r`, `cohere/command-r-plus`, and more.
 
 **View Available Models:**
 ```bash
-npm run cli -- models
+councilclaw models
+# (or: npm run models)
 ```
 
 This lists all 37 models grouped by provider with tier classification (fast/balanced/premium).
 
 See full [Model Catalog](docs/ARCHITECTURE.md) for technical specifications.
 
-##  Communication Channels
+## Communication Channels
 
 Submit tasks via **13 different channels**, integrating CouncilClaw into your preferred platforms:
 
@@ -282,7 +213,7 @@ Submit tasks via **13 different channels**, integrating CouncilClaw into your pr
 - `slack` - Slack workspaces
 - `teams` - Microsoft Teams
 - `discord` - Discord servers
-- `telegram` - Telegram bots
+- `telegram` - Telegram bots (19+ commands - see [Telegram Commands](docs/TELEGRAM_COMMANDS.md))
 
 **Decentralized & Legacy:**
 - `matrix` - Matrix Protocol (decentralized chat)
@@ -311,6 +242,38 @@ curl -X POST http://localhost:8787/task \
     "userId": "user-123"
   }'
 ```
+
+## 🤖 Telegram Bot Commands
+
+CouncilClaw Telegram bot supports **20+ slash commands** for rich interaction:
+
+**Core:**
+- `/start` - Initialize bot
+- `/council` - Submit query to council
+- `/help` - Show available commands
+- `/commands` - List all commands
+
+**Session Management:**
+- `/new` - Start new session
+- `/session` - Manage session settings
+- `/reset` - Reset session context
+- `/stop` - Stop running council deliberation
+- `/compact` - Compress session context
+
+**Options:**
+- `/model` - View/set chairman model
+- `/chairman` - Switch chairman mid-session
+- `/models` - List available models
+- `/thinking` or `/t` - Set thinking level (shallow/normal/deep)
+- `/verbose` or `/v` - Toggle verbose mode
+
+**Status & Info:**
+- `/status` - Show current status
+- `/context` - Explain memory context system
+- `/whoami` - Show your user ID
+- `/usage` - Show usage statistics
+
+**[Complete Telegram Commands Guide →](docs/TELEGRAM_COMMANDS.md)**
 
 ## 🔌 API Documentation
 
@@ -400,7 +363,8 @@ For detailed architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ### Command Execution
 - **Permissive with Safety Blocklist**: Most commands are allowed, but dangerous ones are blocked.
-- **Blocked Commands**: `rm -rf`, `mv` to critical paths, disk formatting, etc.
+- **Core Blocked Commands**: `shutdown`, `reboot`, `format`, `mkfs`, and dangerous `rm` patterns.
+- **User Blocked Commands**: Customize your blocklist during `councilclaw setup` (or `npm run setup`) or via `councilclaw config set blocked_shell_commands`.
 - **Chaining Allowed**: Commands like `mkdir test && cd test` are now supported as long as they don't contain dangerous patterns.
 - **Error Handling**: Captured and logged with exit codes
 
@@ -509,7 +473,7 @@ See test files in [src/__tests__/](src/__tests__/) for examples.
 | `COUNCILCLAW_RATE_LIMIT` | `30` | Requests per window |
 | `COUNCILCLAW_RATE_WINDOW_MS` | `60000` | milliseconds |
 | `ALLOWED_CHAIRMAN_MODELS` | (builtin) | Comma-separated allowlist |
-| `ALLOWED_SHELL_COMMANDS` | `echo,ls,pwd,cat` | Comma-separated allowlist |
+| `BLOCKED_SHELL_COMMANDS` | `shutdown,reboot,format,mkfs` | Comma-separated blocklist |
 
 **Storage:**
 | Variable | Default | Description |
