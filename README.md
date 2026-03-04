@@ -525,3 +525,9 @@ See LICENSE file.
 - [Architecture Guide](docs/ARCHITECTURE.md)
 - [Security Policy](SECURITY.md)
 - [OpenRouter Models](https://openrouter.ai/models)
+
+## Contributing
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+
+## License
+This project is licensed under **GNU GPL v3.0**. See [LICENSE](LICENSE).

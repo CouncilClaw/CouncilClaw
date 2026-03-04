@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import readline from "node:readline/promises";
+import { cursorTo, clearScreenDown } from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
@@ -221,54 +222,72 @@ async function runReconfiguration(rl: readline.Interface, cfg: CouncilClawSettin
     "Done & Exit"
   ];
 
+  const drawHeader = () => {
+    printHeader();
+    printConfigSummary(cfg);
+  };
+
   while (true) {
-    const choiceIdx = await selectFromList(rl, "Select sections to configure", sections);
+    const choiceIdx = await selectFromList(rl, "Select sections to configure", sections, undefined, drawHeader);
     const section = sections.find((_, i) => sections[i] === choiceIdx);
 
     if (section === "Done & Exit" || !section) break;
 
-    if (section === "API & Workspace") {
-      cfg.openRouterApiKey = await ask(rl, "OpenRouter API Key", cfg.openRouterApiKey ? "********" : "");
-      if (cfg.openRouterApiKey === "********") cfg.openRouterApiKey = (await ensureConfig()).openRouterApiKey;
-      cfg.openRouterBaseUrl = await ask(rl, "OpenRouter Base URL", cfg.openRouterBaseUrl);
-    } 
-    else if (section === "Model Council") {
-      cfg.councilModels = await selectModelsHierarchically(rl, "Configure Council Models", cfg.councilModels);
-      if (cfg.councilModels.length > 0) {
-        const currentChairman = cfg.councilModels.includes(cfg.chairmanModel) ? cfg.chairmanModel : cfg.councilModels[0];
-        cfg.chairmanModel = await selectFromList(rl, "Select Primary Chairman Model", cfg.councilModels, currentChairman);
-        cfg.allowedChairmanModels = [...cfg.councilModels];
-      }
-    } 
-    else if (section === "Channels") {
-      const selectedChannelId = await selectChannel(rl, cfg.defaultChannel);
-      cfg.defaultChannel = selectedChannelId;
-      
-      if (selectedChannelId !== "cli") {
-        console.log(`\nConfiguring ${selectedChannelId} channel...`);
-        const chanCfg = cfg.channelConfigs[selectedChannelId] || { enabled: true };
-        chanCfg.enabled = true;
-        
-        if (["slack", "discord", "telegram", "whatsapp"].includes(selectedChannelId)) {
-          chanCfg.token = await ask(rl, `${selectedChannelId.toUpperCase()} Token/API Key`, chanCfg.token ? "********" : "");
-          if (chanCfg.token === "********") chanCfg.token = (await ensureConfig()).channelConfigs[selectedChannelId]?.token;
+    try {
+      if (section === "API & Workspace") {
+        cfg.openRouterApiKey = await ask(rl, "OpenRouter API Key", cfg.openRouterApiKey ? "********" : "");
+        if (cfg.openRouterApiKey === "********") {
+           const current = await ensureConfig();
+           cfg.openRouterApiKey = current.openRouterApiKey;
         }
-        cfg.channelConfigs[selectedChannelId] = chanCfg;
+        cfg.openRouterBaseUrl = await ask(rl, "OpenRouter Base URL", cfg.openRouterBaseUrl);
+      } 
+      else if (section === "Model Council") {
+        cfg.councilModels = await selectModelsHierarchically(rl, "Configure Council Models", cfg.councilModels, drawHeader);
+        if (cfg.councilModels.length > 0) {
+          const currentChairman = cfg.councilModels.includes(cfg.chairmanModel) ? cfg.chairmanModel : cfg.councilModels[0];
+          cfg.chairmanModel = await selectFromList(rl, "Select Primary Chairman Model", cfg.councilModels, currentChairman, drawHeader);
+          cfg.allowedChairmanModels = [...cfg.councilModels];
+        }
+      } 
+      else if (section === "Channels") {
+        const selectedChannelId = await selectChannel(rl, cfg.defaultChannel, drawHeader);
+        cfg.defaultChannel = selectedChannelId;
+        
+        if (selectedChannelId !== "cli") {
+          console.log(`\nConfiguring ${selectedChannelId} channel...`);
+          const chanCfg = cfg.channelConfigs[selectedChannelId] || { enabled: true };
+          chanCfg.enabled = true;
+          
+          if (["slack", "discord", "telegram", "whatsapp"].includes(selectedChannelId)) {
+            chanCfg.token = await ask(rl, `${selectedChannelId.toUpperCase()} Token/API Key`, chanCfg.token ? "********" : "");
+            if (chanCfg.token === "********") {
+               const current = await ensureConfig();
+               chanCfg.token = current.channelConfigs[selectedChannelId]?.token;
+            }
+          }
+          cfg.channelConfigs[selectedChannelId] = chanCfg;
+        }
+      } 
+      else if (section === "System & Safety") {
+        const portRaw = await ask(rl, "Server Port", String(cfg.port));
+        cfg.port = Number(portRaw) || cfg.port;
+
+        const blockedRaw = await ask(rl, "Blocked Shell Commands", cfg.blockedShellCommands.join(","));
+        cfg.blockedShellCommands = blockedRaw.split(",").map((x) => x.trim()).filter(Boolean);
+
+        const telegramCmdsRaw = await ask(rl, "Telegram Bot Commands", cfg.telegramCommands.join(","));
+        cfg.telegramCommands = telegramCmdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
       }
-    } 
-    else if (section === "System & Safety") {
-      const portRaw = await ask(rl, "Server Port", String(cfg.port));
-      cfg.port = Number(portRaw) || cfg.port;
 
-      const blockedRaw = await ask(rl, "Blocked Shell Commands", cfg.blockedShellCommands.join(","));
-      cfg.blockedShellCommands = blockedRaw.split(",").map((x) => x.trim()).filter(Boolean);
-
-      const telegramCmdsRaw = await ask(rl, "Telegram Bot Commands", cfg.telegramCommands.join(","));
-      cfg.telegramCommands = telegramCmdsRaw.split(",").map((x) => x.trim()).filter(Boolean);
+      await saveConfig(cfg);
+      console.log(`\n✅ ${section} updated. Press Enter to continue...`);
+      await rl.question("");
+    } catch (err: any) {
+      console.error(`\n❌ Error updating ${section}: ${err.message || String(err)}`);
+      console.log("Press Enter to continue...");
+      await rl.question("");
     }
-
-    await saveConfig(cfg);
-    console.log(`\n✅ ${section} updated.`);
   }
 
   console.log("\n✅ Configuration saved.");
@@ -453,6 +472,10 @@ async function main(): Promise<void> {
 }
 
 main().catch((e) => {
-  console.error(e);
+  const msg = e instanceof Error ? e.message : String(e);
+  console.error(`\n❌ Fatal Error: ${msg}`);
+  if (process.env.DEBUG === "true" && e instanceof Error && e.stack) {
+    console.error(e.stack);
+  }
   process.exit(1);
 });

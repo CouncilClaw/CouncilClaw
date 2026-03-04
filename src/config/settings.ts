@@ -165,9 +165,13 @@ export async function loadConfig(): Promise<CouncilClawSettings> {
 }
 
 export async function saveConfig(cfg: CouncilClawSettings): Promise<void> {
-  const validated = settingsSchema.parse(cfg);
+  const validated = settingsSchema.safeParse(cfg);
+  if (!validated.success) {
+    const issues = validated.error.issues.map(i => `[${i.path.join(".")}] ${i.message}`).join("\n");
+    throw new Error(`Configuration validation failed:\n${issues}`);
+  }
   await mkdir(dirname(CONFIG_PATH), { recursive: true });
-  await writeFile(CONFIG_PATH, JSON.stringify(validated, null, 2) + "\n", "utf8");
+  await writeFile(CONFIG_PATH, JSON.stringify(validated.data, null, 2) + "\n", "utf8");
 }
 
 export function applyConfigToEnv(cfg: CouncilClawSettings): void {
