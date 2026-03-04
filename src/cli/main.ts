@@ -213,6 +213,53 @@ async function runOnboarding(rl: readline.Interface, cfg: CouncilClawSettings): 
   console.log("\n✅ Onboarding complete! Use 'npm run setup' again to customize further.");
 }
 
+async function testChannelConnection(channelId: string, token: string, commands?: string[]): Promise<{ ok: boolean; message: string }> {
+  if (channelId === "telegram") {
+    try {
+      // Test connection with getMe
+      const resp = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+      const data = await resp.json() as any;
+      if (!data.ok) {
+        return { ok: false, message: data.description || "Invalid token" };
+      }
+
+      // Register commands if provided
+      if (commands && commands.length > 0) {
+        try {
+          const commandObjects = commands.map((cmd) => ({
+            command: cmd.replace(/^\//, ""), // Remove leading slash
+            description: `CouncilClaw ${cmd} command`,
+          }));
+
+          const cmdResp = await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ commands: commandObjects }),
+          });
+          const cmdData = await cmdResp.json() as any;
+          if (!cmdData.ok) {
+            console.warn(`⚠️  Commands registration failed: ${cmdData.description}`);
+          }
+        } catch (cmdErr: any) {
+          console.warn(`⚠️  Could not register commands: ${cmdErr.message}`);
+        }
+      }
+
+      return { ok: true, message: `Connected! Logged in as @${data.result.username}` };
+    } catch (err: any) {
+      return { ok: false, message: `Network error: ${err.message}` };
+    }
+  }
+  // Add other channel tests here
+  return { ok: true, message: "Configuration saved (test skipped for this channel)." };
+}
+
+function maskToken(token: string | undefined): string {
+  if (!token) return "";
+  if (token.length <= 4) return "****";
+  return "********" + token.slice(-4);
+}
+
 async function runReconfiguration(rl: readline.Interface, cfg: CouncilClawSettings): Promise<void> {
   const sections = [
     "API & Workspace",
@@ -252,21 +299,60 @@ async function runReconfiguration(rl: readline.Interface, cfg: CouncilClawSettin
       } 
       else if (section === "Channels") {
         const selectedChannelId = await selectChannel(rl, cfg.defaultChannel, drawHeader);
+        if (selectedChannelId === "back") continue;
+        
         cfg.defaultChannel = selectedChannelId;
         
         if (selectedChannelId !== "cli") {
           console.log(`\nConfiguring ${selectedChannelId} channel...`);
           const chanCfg = cfg.channelConfigs[selectedChannelId] || { enabled: true };
-          chanCfg.enabled = true;
           
-          if (["slack", "discord", "telegram", "whatsapp"].includes(selectedChannelId)) {
-            chanCfg.token = await ask(rl, `${selectedChannelId.toUpperCase()} Token/API Key`, chanCfg.token ? "********" : "");
-            if (chanCfg.token === "********") {
-               const current = await ensureConfig();
-               chanCfg.token = current.channelConfigs[selectedChannelId]?.token;
+          let shouldUpdate = true;
+          if (chanCfg.token) {
+            console.log(`\nConnected account detected: ${maskToken(chanCfg.token)}`);
+            const change = (await rl.question("Do you want to change this connection? (y/N): ")).trim().toLowerCase();
+            if (change !== "y" && change !== "yes") {
+              shouldUpdate = false;
             }
           }
-          cfg.channelConfigs[selectedChannelId] = chanCfg;
+
+          if (shouldUpdate) {
+            chanCfg.enabled = true;
+            if (["slack", "discord", "telegram", "whatsapp"].includes(selectedChannelId)) {
+              const currentToken = chanCfg.token || "";
+              const displayToken = currentToken ? maskToken(currentToken) : "";
+              
+              const newToken = await ask(rl, `${selectedChannelId.toUpperCase()} Token/API Key`, displayToken);
+              
+              if (newToken === displayToken) {
+                // Keep existing
+              } else {
+                chanCfg.token = newToken;
+              }
+            }
+            
+            // Connection Test
+            if (chanCfg.token) {
+              console.log(`\nTesting ${selectedChannelId} connection...`);
+              const commandsToUse = selectedChannelId === "telegram" ? cfg.telegramCommands : undefined;
+              const test = await testChannelConnection(selectedChannelId, chanCfg.token, commandsToUse);
+              if (test.ok) {
+                console.log(`✅ ${test.message}`);
+                console.log(`You can now interact with CouncilClaw on ${selectedChannelId}.`);
+              } else {
+                console.error(`❌ Connection failed: ${test.message}`);
+                const retry = (await rl.question("Keep this configuration anyway? (y/N): ")).trim().toLowerCase();
+                if (retry !== "y" && retry !== "yes") {
+                   console.log("Reverting channel changes.");
+                   const current = await ensureConfig();
+                   cfg.channelConfigs[selectedChannelId] = current.channelConfigs[selectedChannelId];
+                   continue;
+                }
+              }
+            }
+            
+            cfg.channelConfigs[selectedChannelId] = chanCfg;
+          }
         }
       } 
       else if (section === "System & Safety") {

@@ -261,7 +261,11 @@ export async function selectChannel(rl: Interface, current = "cli", drawHeader?:
   const { ensureConfig } = await import("../config/settings.js");
   const cfg = await ensureConfig();
 
-  const labels = CHANNELS.map((c) => {
+  const options = [...CHANNELS, { id: "back", label: "[Back]" }];
+
+  const labels = options.map((c) => {
+    if (c.id === "back") return c.label;
+    
     const isDefault = c.id === current;
     const isConfigured = c.id === "cli" || (cfg.channelConfigs[c.id]?.enabled && (cfg.channelConfigs[c.id]?.token || cfg.channelConfigs[c.id]?.apiKey));
     
@@ -274,7 +278,7 @@ export async function selectChannel(rl: Interface, current = "cli", drawHeader?:
 
   const currentIdx = Math.max(
     0,
-    CHANNELS.findIndex((c) => c.id === current),
+    options.findIndex((c) => c.id === current),
   );
 
   if (!input.isTTY || !output.isTTY) {
@@ -283,11 +287,11 @@ export async function selectChannel(rl: Interface, current = "cli", drawHeader?:
       const marker = i === currentIdx ? "●" : "○";
       console.log(`  ${marker} ${label}`);
     });
-    const choice = (await rl.question(`  Select (1-${CHANNELS.length}): `)).trim();
+    const choice = (await rl.question(`  Select (1-${labels.length}): `)).trim();
     const idx = parseInt(choice, 10) - 1;
-    return idx >= 0 && idx < CHANNELS.length ? CHANNELS[idx].id : CHANNELS[currentIdx].id;
+    return idx >= 0 && idx < options.length ? options[idx].id : options[currentIdx].id;
   }
 
   const idx = await waitForSingleChoice("Select default channel", labels, currentIdx, drawHeader);
-  return CHANNELS[idx]?.id || CHANNELS[currentIdx].id;
+  return options[idx]?.id || options[currentIdx].id;
 }
