@@ -223,14 +223,17 @@ async function testChannelConnection(channelId: string, token: string, commands?
         return { ok: false, message: data.description || "Invalid token" };
       }
 
-      // Register commands if provided
-      if (commands && commands.length > 0) {
+      // Register commands if provided (or use defaults)
+      const cmdsToRegister = commands && commands.length > 0 ? commands : DEFAULT_SETTINGS.telegramCommands;
+      
+      if (cmdsToRegister && cmdsToRegister.length > 0) {
         try {
-          const commandObjects = commands.map((cmd) => ({
+          const commandObjects = cmdsToRegister.map((cmd) => ({
             command: cmd.replace(/^\//, ""), // Remove leading slash
             description: `CouncilClaw ${cmd} command`,
           }));
 
+          console.log(`  📋 Registering ${commandObjects.length} commands...`);
           const cmdResp = await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -238,10 +241,12 @@ async function testChannelConnection(channelId: string, token: string, commands?
           });
           const cmdData = await cmdResp.json() as any;
           if (!cmdData.ok) {
-            console.warn(`⚠️  Commands registration failed: ${cmdData.description}`);
+            console.warn(`  ⚠️  Commands registration failed: ${cmdData.description}`);
+          } else {
+            console.log(`  ✓ Commands registered in Telegram bot menu`);
           }
         } catch (cmdErr: any) {
-          console.warn(`⚠️  Could not register commands: ${cmdErr.message}`);
+          console.warn(`  ⚠️  Could not register commands: ${cmdErr.message}`);
         }
       }
 
