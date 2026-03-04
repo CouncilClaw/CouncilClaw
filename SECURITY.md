@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 Please do not open public issues for security vulnerabilities.
-Email the maintainer privately with:
+Email the maintainer privately at **elishaodida@proton.me** with:
 - impact
 - steps to reproduce
 - affected versions/commits

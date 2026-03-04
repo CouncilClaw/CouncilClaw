@@ -529,4 +529,5 @@ This project is licensed under **GNU GPL v3.0**. See [LICENSE](LICENSE).
 - [API Documentation](docs/API.md)
 - [Architecture Guide](docs/ARCHITECTURE.md)
 - [Security Policy](SECURITY.md)
+- Security contact: **elishaodida@proton.me**
 - [OpenRouter Models](https://openrouter.ai/models)

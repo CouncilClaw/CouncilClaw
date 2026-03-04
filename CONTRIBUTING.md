@@ -51,5 +51,7 @@ Include:
 Do **not** open public issues for vulnerabilities.
 Use `SECURITY.md` for reporting guidance.
 
+Security contact: **elishaodida@proton.me**
+
 ## License
 By contributing, you agree your contributions are licensed under this repository's GPL-3.0 license.
