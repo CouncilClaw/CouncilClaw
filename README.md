@@ -6,16 +6,28 @@
 
 An intelligent LLM-powered system that combines multiple model perspectives for better decision-making. CouncilClaw uses deliberative processes—complexity routing, task decomposition, peer review, and synthesis—to deliver reliable results.
 
-> ⚠️ **Experimental Build Notice**: CouncilClaw started as a vibe-coded prototype and is still evolving quickly. Validate outputs, review execution settings, and treat this release as fast-moving software—not a finalized enterprise platform.
+> ⚠️ **Experimental Build Notice**: CouncilClaw started as a vibe-coded prototype merging ideas from [nanoclaw](https://github.com/qwibitai/nanoclaw) (lightweight agent execution) and [llm-council](https://github.com/karpauer/llm-council) (multi-model deliberation). The project is still evolving quickly. Validate outputs, review execution settings, and treat this release as fast-moving software—not a finalized enterprise platform. Think of it as exploring the intersection of efficient task execution with consensus-driven decision-making.
+
+## 🚀 TL;DR - Get Started in 2 Minutes
+
+```bash
+npm install && npm run setup
+npm run chat
+# Type your question → Council deliberates → Get answer ✨
+```
+
+**First time?** See [QUICK_START.md](QUICK_START.md) for commands and [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md) for API key setup.
 
 ## ✨ Features
 
 - **Multi-Model Consensus**: Harness opinions from multiple LLMs (OpenAI, Google, Anthropic, xAI, Meta)
+- **🧠 Intelligent Memory System**: Automatically learns from decisions, preferences, and constraints to improve future deliberations
+- **Simple Task Routing**: Skip full council deliberation for simple tasks (like `mkdir` or `ls`), letting the Chairman handle them directly for speed and cost efficiency.
 - **Complexity Routing**: Automatically route simple vs. complex tasks to appropriate deliberation pipelines
 - **Task Decomposition**: Break complex requests into manageable, parallel-executable chunks
 - **Blind Peer Review**: Anonymous model critiques detect flawed proposals before execution
 - **Chairman Synthesis**: A designated model synthesizes diverse opinions into a coherent plan
-- **Guarded Execution**: Allowlist-based command execution with automatic error handling
+- **Permissive Shell Execution**: Execute any shell command with safety guardrails that block dangerous patterns (like `rm -rf /`).
 - **Telemetry & Traces**: Comprehensive execution traces with timing metrics for every phase
 - **CLI & Webhook API**: Interactive chat and programmatic task submission
 - **Input Validation**: Zod-based schemas ensure data integrity across API boundaries
@@ -33,21 +45,18 @@ npm run build
 ```bash
 npm run setup
 ```
-This interactive wizard will guide you through:
+This interactive wizard (inspired by OpenClaw) will guide you through:
 ✓ **Risk acknowledgment** - Review important security/safety considerations
-✓ **OpenRouter API key** - Optional for setup; enables live model calls (get one at [openrouter.ai](https://openrouter.ai))
-✓ **Council models** - Select 1-8 models from the catalog
-✓ **Chairman model** - Selected from the chosen council models only
-✓ **Default channel** - Select communication channel (CLI, Slack, Discord, Teams, etc.)
-✓ **Server settings** - Port, webhook token, rate limits, etc.
-✓ **Terms acceptance** - Required on first setup; optional review on later runs
+✓ **[1/4] API Configuration** - Set OpenRouter API key and base URL
+✓ **[2/4] Model Selection** - Select Council models and a Primary Chairman
+✓ **[3/4] Channel Setup** - Select and configure communication channels (Slack, Discord, etc.)
+✓ **[4/4] System Settings** - Port, shell command timeout, and webhook tokens
 
 **Interactive Menu Features:**
 - Keyboard navigation in TTY: `↑/↓` to move, `Space` to select/unselect, `Enter` to confirm
-- Single-choice menus (chairman/channel): `↑/↓` + `Enter`
-- Multi-select menu (council models): `↑/↓` + `Space` + `Enter`
-- Non-TTY fallback supports number/range input (`1-3,7`)
-- Models grouped by provider for easy browsing
+- Grouped configuration steps for a cleaner experience
+- Automatic derivation of allowed chairman models from your council selection
+- Specific sub-wizards for configuring external channels like Telegram or Discord
 
 ### CLI Commands
 
@@ -58,14 +67,62 @@ npm run chat                     # Start council deliberation
 
 **Setup & Configuration:**
 ```bash
-npm run setup                    # 🌟 Interactive configuration wizard
+npm run setup                    # 🌟 Interactive configuration wizard (Grouped Mode)
 npm run models                   # List 37 supported models by provider
 npm run cli -- config show       # Display current configuration
 npm run cli -- config set <key> <value>  # Update configuration
 ```
+### Quick OpenRouter Setup (if not done during `npm run setup`)
 
+```bash
+# 1. Get your API key from https://openrouter.ai
+# 2. Set it in CouncilClaw:
+npm run cli -- config set openrouter_api_key sk-or-YOUR-KEY-HERE
+
+# 3. Test it works:
+npm run chat
+you> What is 2+2?  # Should see real council responses
+```
+
+**Need detailed setup help?** → See [docs/OPENROUTER_SETUP.md](docs/OPENROUTER_SETUP.md)
+
+### Running Without an API Key (Offline/Stub Mode)
+
+You can use CouncilClaw without an OpenRouter API key:
+
+```bash
+npm run chat
+you> Design a REST API
+
+📋 openai/gpt-4o:
+   Stub response (no OPENROUTER_API_KEY) for REST API design...
+
+ℹ️  Running without OPENROUTER_API_KEY. Responses may be stubbed/local only.
+```
+
+**When to use offline mode:**
+- ✅ Testing/learning CouncilClaw without costs
+- ✅ Understanding the UI and workflow
+- ✅ Developing locally before production
+- ❌ Getting real AI-powered recommendations
+
+**To upgrade from offline to online:**
+1. Get your API key from [openrouter.ai](https://openrouter.ai)
+2. Run `npm run cli -- config set openrouter_api_key YOUR_KEY`
+3. Restart chat - real responses will work immediately!
 ### Requirements
 - **OpenRouter API Key**: Optional. Without it, chat runs in offline/stub mode.
+  
+  📖 **New to OpenRouter?** Choose your learning style:
+  - **[🚀 Quick Start](QUICK_START.md)** - Commands and cheat sheet
+  - **[📚 Step-by-Step Setup](docs/OPENROUTER_SETUP.md)** - Detailed guide with troubleshooting
+  - **[🎨 Visual Guide](docs/OPENROUTER_VISUAL_GUIDE.md)** - Diagrams and flowcharts
+  
+  Get your free API key in 3 steps:
+  1. Sign up at [openrouter.ai](https://openrouter.ai)
+  2. Copy your key from Dashboard → Keys
+  3. Run `npm run cli -- config set openrouter_api_key YOUR_KEY`
+
 - Run `npm run setup` to configure before first use
 
 ### Graceful Exit
@@ -74,28 +131,46 @@ npm run cli -- config set <key> <value>  # Update configuration
 
 ### Chat Interface
 
-When you run `npm run chat`, CouncilClaw displays council deliberations in a clear format:
+When you run `npm run chat`, CouncilClaw displays council deliberations in a clear format. For **simple tasks**, it skips the multi-model deliberation phase to save time:
 
 ```
+[INFO] Simple task detected - skipping council opinions
 📋 openai/gpt-4.1:
-   Your detailed response from the chairman model...
+   Creating the folder 'new-project'...
+   Done.
 
-⏱️  4554ms (decomp: 145ms | first: 3124ms | review: 2087ms | synthesis: 1834ms)
-
-💭 Dissent: Minority opinion or alternative perspective...
+⏱️  450ms (decomp: 20ms | first: 0ms | review: 0ms | synthesis: 430ms)
 ```
 
 **Output Explained:**
 - **📋 Model Name**: Chairman model that synthesized the final answer
-- **⏱️ Timing**: Total time and breakdown per deliberation phase
-- **💭 Dissent**: Alternative viewpoints from council members
+- **⏱️ Timing**: For simple tasks, `first` and `review` phases will show `0ms`.
+- **💭 Dissent**: Alternative viewpoints from council members (Complex tasks only)
 - **⚠️ Errors**: Clear error messages when issues occur
 
-**Error Handling:**
-- If no answer is available: Shows `No answer` plus a reason/details line
-- If chairman fails: automatically attempts fallback to another council model and reports the switch
-- Missing API key: chat still works in offline/stub mode and tells you why
-- Query errors: Displays error message with context
+### Memory System
+
+CouncilClaw includes an intelligent **memory system** that learns from your interactions to provide increasingly better recommendations:
+
+**How Memory Works:**
+- **Automatic Learning**: Extracts decisions, preferences, and constraints from every council run
+- **Context Injection**: Provides accumulated wisdom to council members for better-informed decisions
+- **Session Continuity**: Maintains conversation history for multi-turn interactions
+- **User Profiles**: Learns your preferred technologies, working style, and past decisions
+- **Progressive Enhancement**: Recommendations improve as the system learns more about you
+
+**Example Memory Benefits:**
+```
+First query: "How should I structure a web app?"
+→ Generic recommendations
+
+Fifth query: "Best way to handle auth?"
+→ Recommends approach aligned with your previous choices (e.g., JWT since you chose it before)
+
+Tenth query: Remembers patterns, avoids past errors, respects all your constraints
+```
+
+**Learn More:** See [docs/MEMORY.md](docs/MEMORY.md) for detailed memory system documentation and usage examples.
 
 ### Webhook Server
 ```bash
@@ -117,9 +192,6 @@ npm run cli -- config set openrouter_api_key <KEY>
 # Set council models (1-8 models, default 4)
 npm run cli -- config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
 
-# Set allowed chairman models (chairman must be in council)
-npm run cli -- config set allowed_chairman_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
-
 # Override chairman model per request: use "chairmanModel" in POST /task or --chairman flag in CLI
 
 # View current config
@@ -128,9 +200,9 @@ npm run cli -- config show
 
 **Model Selection Limits:**
 - Council models: minimum 1, maximum 8
-- You can add more models as needed, but 3-4 is optimal for balancing quality vs. cost
+- Chairman model is automatically picked from the council
 - Starting with 2-3 models and adding diversity is recommended
-- Each additional model increases deliberation time (~500-1000ms per model)
+- Each additional model increases deliberation time (~500-1000ms per model for complex tasks)
 
 **Config file location:**
 - `~/.config/councilclaw/config.json`
@@ -196,7 +268,7 @@ This lists all 37 models grouped by provider with tier classification (fast/bala
 
 See full [Model Catalog](docs/ARCHITECTURE.md) for technical specifications.
 
-## � Communication Channels
+##  Communication Channels
 
 Submit tasks via **13 different channels**, integrating CouncilClaw into your preferred platforms:
 
@@ -298,17 +370,11 @@ Input (CLI/API)
     ↓
 Complexity Routing (simple vs. complex)
     ↓
-Task Decomposition (into chunks)
+Simple Task? → SKIP COUNCIL → Chairman Synthesis
     ↓
-First Opinions (multi-model council vote)
+Complex Task? → Task Decomposition → Multi-Model Deliberation → Peer Review → Chairman Synthesis
     ↓
-Anonymization (blind review preparation)
-    ↓
-Peer Review (critique & dissent detection)
-    ↓
-Chairman Synthesis (consensus building)
-    ↓
-Guarded Execution (command allowlist)
+Guarded Execution (Permissive with Blocklist)
     ↓
 Trace Persistence (telemetry storage)
 ```
@@ -327,10 +393,9 @@ For detailed architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - **Type Safety**: Full TypeScript coverage with strict mode enabled
 
 ### Command Execution
-- **Allowlist-Based**: Only whitelisted commands can execute
-  - Default: `echo`, `ls`, `pwd`, `cat`
-  - Configure: `ALLOWED_SHELL_COMMANDS` environment variable
-- **Chain Prevention**: Blocks command chaining (`&&`, `|`, `;`)
+- **Permissive with Safety Blocklist**: Most commands are allowed, but dangerous ones are blocked.
+- **Blocked Commands**: `rm -rf`, `mv` to critical paths, disk formatting, etc.
+- **Chaining Allowed**: Commands like `mkdir test && cd test` are now supported as long as they don't contain dangerous patterns.
 - **Error Handling**: Captured and logged with exit codes
 
 ### API Security

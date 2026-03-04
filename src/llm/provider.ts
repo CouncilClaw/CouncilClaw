@@ -8,6 +8,7 @@ export interface LlmProvider {
     plan: ChairmanPlan,
     opinions: ModelOpinion[],
     reviews: PeerReview[],
+    userId?: string,
   ): Promise<ChairmanPlan>;
 }
 

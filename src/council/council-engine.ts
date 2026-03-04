@@ -13,7 +13,8 @@ import { persistTrace } from "../telemetry/store.js";
 import { logger } from "../telemetry/logger.js";
 import { TaskEnvelopeSchema, type ValidatedTaskEnvelope } from "../validation/schemas.js";
 import { ValidationError } from "../errors/index.js";
-import type { CouncilRunResult, TaskEnvelope } from "../types/contracts.js";
+import { getMemoryOrchestrator } from "../memory/index.js";
+import type { CouncilRunResult, TaskEnvelope, ModelOpinion, PeerReview } from "../types/contracts.js";
 
 function withChairmanOverrideFromText(task: TaskEnvelope): TaskEnvelope {
   const match = task.text.match(/(?:^|\s)(?:\/chairman|chairman:)\s*([\w./:-]+)/i);
@@ -69,33 +70,43 @@ export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunRes
     const registry = loadModelRegistry();
     const chairman = resolveChairmanModel(task, registry);
 
-    // First Pass phase
-    const firstPassStart = Date.now();
-    const firstPass = await llm.firstOpinions(task, chunks);
-    const firstPassMs = Date.now() - firstPassStart;
-    logger.debug("council-engine", "First opinions gathered", {
-      taskId: task.id,
-      opinions: firstPass.length,
-      durationMs: firstPassMs,
-    });
+    let firstPass: ModelOpinion[] = [];
+    let firstPassMs = 0;
+    let reviews: PeerReview[] = [];
+    let reviewMs = 0;
 
-    // Review phase
-    const reviewStart = Date.now();
+    if (decision.label === "complex") {
+      // First Pass phase
+      const firstPassStart = Date.now();
+      firstPass = await llm.firstOpinions(task, chunks);
+      firstPassMs = Date.now() - firstPassStart;
+      logger.debug("council-engine", "First opinions gathered", {
+        taskId: task.id,
+        opinions: firstPass.length,
+        durationMs: firstPassMs,
+      });
+
+      // Review phase
+      const reviewStart = Date.now();
+      const anonymous = anonymizeOpinions(firstPass);
+      reviews = runBlindReview(anonymous);
+      reviewMs = Date.now() - reviewStart;
+      logger.debug("council-engine", "Review phase completed", {
+        taskId: task.id,
+        reviews: reviews.length,
+        durationMs: reviewMs,
+      });
+    } else {
+      logger.info("council-engine", "Simple task detected - skipping council opinions", { taskId: task.id });
+    }
+
     const anonymous = anonymizeOpinions(firstPass);
-    const reviews = decision.label === "complex" ? runBlindReview(anonymous) : [];
     const dissent = detectDissent(reviews) || chairman.note;
-    const reviewMs = Date.now() - reviewStart;
-    logger.debug("council-engine", "Review phase completed", {
-      taskId: task.id,
-      reviews: reviews.length,
-      hasDissent: !!dissent,
-      durationMs: reviewMs,
-    });
 
     // Synthesis phase
     const synthesisStart = Date.now();
     const draftedPlan = synthesizePlan(chunks, anonymous, reviews, chairman.model);
-    const chairmanPlan = await llm.chairmanRefine(chairman.model, draftedPlan, anonymous, reviews);
+    const chairmanPlan = await llm.chairmanRefine(chairman.model, draftedPlan, anonymous, reviews, task.userId);
     const synthesisMs = Date.now() - synthesisStart;
     logger.debug("council-engine", "Synthesis phase completed", {
       taskId: task.id,
@@ -128,6 +139,15 @@ export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunRes
 
     const result = { decision, chairmanPlan, reports, trace };
     await persistTrace(task, result);
+
+    // Record in memory system for future reference
+    const orchestrator = getMemoryOrchestrator();
+    await orchestrator.recordCouncilRun(task, result).catch((err) => {
+      logger.warn("council-engine", "Failed to record council run in memory", {
+        error: err instanceof Error ? err.message : String(err),
+        taskId: task.id,
+      });
+    });
 
     logger.info("council-engine", "Council run completed", {
       taskId: task.id,

@@ -1,6 +1,7 @@
 import { runCouncil } from "./council/council-engine.js";
 import { startWebhookServer } from "./api/webhook.js";
 import { applyConfigToEnv, ensureConfig } from "./config/settings.js";
+import { initializeMemoryStore } from "./memory/index.js";
 import type { TaskEnvelope } from "./types/contracts.js";
 
 async function runDemo(): Promise<void> {
@@ -22,6 +23,13 @@ async function runDemo(): Promise<void> {
 async function main(): Promise<void> {
   const cfg = await ensureConfig();
   applyConfigToEnv(cfg);
+
+  // Initialize memory system
+  try {
+    await initializeMemoryStore();
+  } catch (error) {
+    console.warn("Warning: Memory system initialization failed. Continuing without memory.", error);
+  }
 
   if (process.env.COUNCILCLAW_MODE === "server") {
     startWebhookServer();

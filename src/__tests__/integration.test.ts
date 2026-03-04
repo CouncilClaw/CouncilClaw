@@ -48,5 +48,13 @@ describe("council engine integration", () => {
       const result = await runCouncil(makeTask({ text: "/chairman openai/gpt-4.1 Build api tests" }));
       expect(result.trace.selectedChairmanModel).toBe("openai/gpt-4.1");
     });
+
+    it("skips council opinions for simple tasks", async () => {
+      const result = await runCouncil(makeTask({ text: "mkdir new-folder" }));
+      
+      expect(result.decision.label).toBe("simple");
+      expect(result.trace.timing?.firstPassMs).toBe(0);
+      expect(result.trace.timing?.reviewMs).toBe(0);
+    });
   });
 });

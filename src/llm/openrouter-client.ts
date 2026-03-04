@@ -2,6 +2,7 @@ import type { ChairmanPlan, ChunkPlan, ModelOpinion, PeerReview, TaskEnvelope } 
 import type { LlmProvider } from "./provider.js";
 import { loadModelRegistry } from "./model-registry.js";
 import { getEnv } from "../config/env.js";
+import { getMemoryOrchestrator } from "../memory/index.js";
 
 interface OpenRouterResponse {
   choices?: Array<{ message?: { content?: string } }>;
@@ -46,6 +47,7 @@ export class OpenRouterLlmProvider implements LlmProvider {
     plan: ChairmanPlan,
     opinions: ModelOpinion[],
     reviews: PeerReview[],
+    userId?: string,
   ): Promise<ChairmanPlan> {
     const { openRouterApiKey: apiKey } = getEnv();
     if (!apiKey) {
@@ -55,10 +57,18 @@ export class OpenRouterLlmProvider implements LlmProvider {
       };
     }
 
+    // Inject memory context for chairman
+    let memoryContext = "";
+    if (userId) {
+      const orchestrator = getMemoryOrchestrator();
+      memoryContext = await orchestrator.getContextInjection(userId);
+    }
+
     const prompt = [
       "You are the Chairman model in an anonymous LLM council.",
       "Refine the rationale and fallback section only.",
       "Do not change chunk IDs or execution order.",
+      memoryContext ? `\n${memoryContext}` : "",
       "Return strict JSON with keys: rationale (string), fallbacks (string[]).",
       `Current plan: ${JSON.stringify(plan)}`,
       `Opinions: ${JSON.stringify(opinions)}`,
@@ -110,9 +120,14 @@ export class OpenRouterLlmProvider implements LlmProvider {
   }
 
   private async askModel(model: string, task: TaskEnvelope, chunk: ChunkPlan): Promise<string> {
+    // Get memory context if available
+    const orchestrator = getMemoryOrchestrator();
+    const memoryContext = await orchestrator.getContextInjection(task.userId, task.id);
+
     const prompt = [
       "You are part of an anonymous model council.",
       "Return a concise execution proposal for this chunk.",
+      memoryContext ? `\n${memoryContext}` : "",
       `Task: ${task.text}`,
       `Chunk goal: ${chunk.goal}`,
       `Expected output: ${chunk.expectedOutput}`,

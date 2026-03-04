@@ -7,6 +7,7 @@ import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm
 import { CONFIG_PATH, applyConfigToEnv, ensureConfig, ensureConfigDetailed, saveConfig, validateModels, type CouncilClawSettings } from "../config/settings.js";
 import { CLI_BANNER, tagline } from "./banner.js";
 import { selectFromList, selectMultipleModels, selectChannel } from "./menu-helpers.js";
+import { initializeMemoryStore } from "../memory/index.js";
 
 function printHeader(): void {
   console.log(CLI_BANNER);
@@ -161,72 +162,61 @@ async function configureWizard(): Promise<void> {
     }
     cfg.termsAccepted = true;
     cfg.termsAcceptedAt = new Date().toISOString();
-  } else {
-    const reviewTerms = (await rl.question("Review and re-accept risk terms now? (y/N): ")).trim().toLowerCase();
-    if (reviewTerms === "y" || reviewTerms === "yes") {
-      const accepted = await acceptTerms(rl);
-      if (!accepted) {
-        detachSigint();
-        rl.close();
-        return;
-      }
-      cfg.termsAccepted = true;
-      cfg.termsAcceptedAt = new Date().toISOString();
-    }
   }
 
   printHeader();
-  console.log("\n┌ CouncilClaw configure");
+  console.log("\n┌ CouncilClaw Setup Wizard");
   console.log(`│ Config path: ${CONFIG_PATH}`);
   console.log("│ Press Enter to keep current value.");
   console.log("└");
 
-  showModelShortlist();
-
   const next: CouncilClawSettings = { ...cfg };
 
+  // --- SECTION 1: API Configuration ---
+  console.log("\n--- [1/4] API Configuration ---");
   next.openRouterApiKey = await ask(rl, "OpenRouter API Key", cfg.openRouterApiKey ? "********" : "");
   if (next.openRouterApiKey === "********") {
     next.openRouterApiKey = cfg.openRouterApiKey;
-  } else if (!next.openRouterApiKey || next.openRouterApiKey.trim() === "") {
-    console.log("ℹ️  No API key configured. Chat will run in local stub mode until you add one.");
-    next.openRouterApiKey = "";
   }
-
   next.openRouterBaseUrl = await ask(rl, "OpenRouter Base URL", cfg.openRouterBaseUrl);
-  if (!next.openRouterBaseUrl.trim()) {
-    next.openRouterBaseUrl = "https://openrouter.ai/api/v1";
-    console.log("ℹ️  Empty base URL replaced with default: https://openrouter.ai/api/v1");
-  }
 
-  // Interactive council model selection (keyboard selection)
+  // --- SECTION 2: Council & Chairman Models ---
+  console.log("\n--- [2/4] Model Selection ---");
   next.councilModels = await selectMultipleModels(rl, "Select Council Models", MIN_COUNCIL_MODELS, MAX_COUNCIL_MODELS, cfg.councilModels);
 
-  // Chairman selection constrained to selected council models.
   const currentChairman = next.councilModels.includes(cfg.chairmanModel) ? cfg.chairmanModel : next.councilModels[0];
-  next.chairmanModel = await selectFromList(rl, "Select Chairman Model", next.councilModels, currentChairman);
-  if (!next.councilModels.includes(next.chairmanModel)) {
-    next.chairmanModel = currentChairman;
-  }
-
-  const allowedRaw = await ask(rl, `Allowed Chairman Models [max ${MAX_COUNCIL_MODELS}] (comma-separated)`, cfg.allowedChairmanModels.join(","));
-  const allowedParsed = validateModels(allowedRaw.split(",").map((x) => x.trim()));
+  next.chairmanModel = await selectFromList(rl, "Select Primary Chairman Model", next.councilModels, currentChairman);
   
-  if (allowedParsed.length > MAX_COUNCIL_MODELS) {
-    console.log(`⚠️  Maximum ${MAX_COUNCIL_MODELS} models allowed. Using first ${MAX_COUNCIL_MODELS}.`);
-    next.allowedChairmanModels = allowedParsed.slice(0, MAX_COUNCIL_MODELS);
-  } else if (allowedParsed.length > 0) {
-    next.allowedChairmanModels = allowedParsed;
-  } else {
-    console.log("⚠️  Using current value.");
-    next.allowedChairmanModels = cfg.allowedChairmanModels;
+  // Use all selected council models as allowed chairman models (for rotation/fallback)
+  next.allowedChairmanModels = [...next.councilModels];
+
+  // --- SECTION 3: Channels ---
+  console.log("\n--- [3/4] Channel Setup ---");
+  const selectedChannelId = await selectChannel(rl, cfg.defaultChannel);
+  next.defaultChannel = selectedChannelId;
+
+  // Configure selected channel
+  if (selectedChannelId !== "cli") {
+    console.log(`\nConfiguring ${selectedChannelId} channel...`);
+    const chanCfg = next.channelConfigs[selectedChannelId] || { enabled: true };
+    chanCfg.enabled = true;
+    
+    if (["slack", "discord", "telegram", "whatsapp"].includes(selectedChannelId)) {
+      chanCfg.token = await ask(rl, `${selectedChannelId.toUpperCase()} Token/API Key`, chanCfg.token ? "********" : "");
+      if (chanCfg.token === "********") chanCfg.token = cfg.channelConfigs[selectedChannelId]?.token;
+    }
+    
+    if (selectedChannelId === "webhook" || selectedChannelId === "http") {
+      chanCfg.webhookUrl = await ask(rl, "Webhook/Target URL", chanCfg.webhookUrl || "");
+    }
+    
+    next.channelConfigs[selectedChannelId] = chanCfg;
   }
 
+  // --- SECTION 4: System Settings ---
+  console.log("\n--- [4/4] System Settings ---");
   const portRaw = await ask(rl, "Server Port", String(cfg.port));
   next.port = Number(portRaw) || cfg.port;
-
-  const tracePath = await ask(rl, "Trace Store Path", cfg.tracePath);
-  next.tracePath = tracePath;
 
   const cmds = await ask(rl, "Allowed Shell Commands (comma-separated)", cfg.allowedShellCommands.join(","));
   next.allowedShellCommands = cmds.split(",").map((x) => x.trim()).filter(Boolean);
@@ -234,24 +224,14 @@ async function configureWizard(): Promise<void> {
   const timeoutRaw = await ask(rl, "Exec Timeout (ms)", String(cfg.execTimeoutMs));
   next.execTimeoutMs = Number(timeoutRaw) || cfg.execTimeoutMs;
 
-  next.webhookToken = await ask(rl, "Webhook Auth Token (Bearer)", cfg.webhookToken ? "********" : "");
+  next.webhookToken = await ask(rl, "Internal Webhook Token", cfg.webhookToken ? "********" : "");
   if (next.webhookToken === "********") next.webhookToken = cfg.webhookToken;
-
-  // Interactive channel selection
-  next.defaultChannel = await selectChannel(rl, cfg.defaultChannel);
-
-  const rateRaw = await ask(rl, "Rate Limit per minute", String(cfg.rateLimitPerMinute));
-  next.rateLimitPerMinute = Number(rateRaw) || cfg.rateLimitPerMinute;
-
-  // Preserve terms acceptance
-  next.termsAccepted = cfg.termsAccepted;
-  next.termsAcceptedAt = cfg.termsAcceptedAt;
 
   await saveConfig(next);
   detachSigint();
   rl.close();
 
-  console.log("\n✅ Configuration saved.");
+  console.log("\n✅ Configuration complete!");
   console.log(`Path: ${CONFIG_PATH}`);
 }
 
@@ -391,6 +371,13 @@ async function configSet(key: string, value: string): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // Initialize memory system
+  try {
+    await initializeMemoryStore();
+  } catch (error) {
+    console.warn("Warning: Memory system initialization failed. Continuing without memory.", error);
+  }
+
   const [cmd, ...args] = process.argv.slice(2);
 
   if (!cmd || cmd === "chat") return chatMode();

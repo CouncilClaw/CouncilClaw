@@ -5,6 +5,16 @@ import { homedir } from "node:os";
 import { z } from "zod";
 import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
 
+export interface ChannelConfig {
+  enabled: boolean;
+  apiKey?: string;
+  webhookUrl?: string;
+  appId?: string;
+  appSecret?: string;
+  region?: string;
+  token?: string;
+}
+
 export interface CouncilClawSettings {
   openRouterApiKey: string;
   openRouterBaseUrl: string;
@@ -12,6 +22,7 @@ export interface CouncilClawSettings {
   chairmanModel: string;
   allowedChairmanModels: string[];
   defaultChannel: string;
+  channelConfigs: Record<string, ChannelConfig>;
   port: number;
   tracePath: string;
   allowedShellCommands: string[];
@@ -46,9 +57,16 @@ export const DEFAULT_SETTINGS: CouncilClawSettings = {
     "anthropic/claude-3.7-sonnet",
   ],
   defaultChannel: "cli",
+  channelConfigs: {
+    cli: { enabled: true },
+    slack: { enabled: false },
+    discord: { enabled: false },
+    telegram: { enabled: false },
+    whatsapp: { enabled: false },
+  },
   port: 8787,
   tracePath: "data/council-traces.jsonl",
-  allowedShellCommands: ["echo", "ls", "pwd", "cat"],
+  allowedShellCommands: ["echo", "ls", "pwd", "cat", "mkdir", "touch", "cp", "mv", "grep", "find"],
   execTimeoutMs: 12000,
   webhookToken: "",
   rateLimitPerMinute: 30,
@@ -61,6 +79,16 @@ const modelIdSchema = z.string().trim().min(1).refine((m) => SUPPORTED_MODEL_IDS
   message: "Unsupported model id",
 });
 
+const channelConfigSchema = z.object({
+  enabled: z.boolean(),
+  apiKey: z.string().optional(),
+  webhookUrl: z.string().url().optional(),
+  appId: z.string().optional(),
+  appSecret: z.string().optional(),
+  region: z.string().optional(),
+  token: z.string().optional(),
+});
+
 const settingsSchema = z.object({
   openRouterApiKey: z.string(),
   openRouterBaseUrl: z.string().trim().url(),
@@ -68,6 +96,7 @@ const settingsSchema = z.object({
   chairmanModel: modelIdSchema,
   allowedChairmanModels: z.array(modelIdSchema).min(1).max(MAX_COUNCIL_MODELS, `Maximum ${MAX_COUNCIL_MODELS} allowed chairman models`),
   defaultChannel: z.string().trim().min(1).default("cli"),
+  channelConfigs: z.record(channelConfigSchema).default({}),
   port: z.coerce.number().int().min(1).max(65535),
   tracePath: z.string().trim().min(1),
   allowedShellCommands: z.array(z.string().trim().min(1)).min(1),
