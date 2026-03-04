@@ -509,25 +509,24 @@ Typical timing ranges:
 
 ## 🤝 Contributing
 
-Contributions welcome! Please:
-1. Add tests for new features
-2. Run `npm test` before submitting
-3. Update documentation as needed
-4. Follow existing code style (strict TypeScript)
+Contributions are welcome.
+
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+
+Quick checklist:
+1. Add/update tests for behavior changes
+2. Run `npm run verify` before submitting
+3. Update docs for user-visible changes
+4. Keep safety defaults intact
 
 ## 📄 License
 
-See LICENSE file.
+This project is licensed under **GNU GPL v3.0**. See [LICENSE](LICENSE).
 
 ## 🔗 Links
 
+- [Repository](https://github.com/CouncilClaw/CouncilClaw)
 - [API Documentation](docs/API.md)
 - [Architecture Guide](docs/ARCHITECTURE.md)
 - [Security Policy](SECURITY.md)
 - [OpenRouter Models](https://openrouter.ai/models)
-
-## Contributing
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
-
-## License
-This project is licensed under **GNU GPL v3.0**. See [LICENSE](LICENSE).
