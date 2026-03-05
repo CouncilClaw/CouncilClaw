@@ -2,7 +2,7 @@ import type { CouncilTrace, ModelOpinion, PeerReview } from "../types/contracts.
 
 export function buildCouncilTrace(
   opinions: ModelOpinion[],
-  reviews: PeerReview[],
+  _reviews: PeerReview[],
   selectedChairmanModel: string,
   dissent?: string,
 ): CouncilTrace {

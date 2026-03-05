@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import readline from "node:readline/promises";
-import { cursorTo, clearScreenDown } from "node:readline";
 import { stdin as input, stdout as output } from "node:process";
 import { randomUUID } from "node:crypto";
 import { runCouncil } from "../council/council-engine.js";
@@ -9,6 +8,8 @@ import { CONFIG_PATH, DEFAULT_SETTINGS, applyConfigToEnv, ensureConfig, ensureCo
 import { CLI_BANNER, tagline } from "./banner.js";
 import { selectFromList, selectModelsHierarchically, selectChannel } from "./menu-helpers.js";
 import { initializeMemoryStore } from "../memory/index.js";
+import { registerTelegramCommands } from "../channels/telegram-bot.js";
+import { installDaemon, uninstallDaemon } from "./daemon-manager.js";
 
 function printHeader(): void {
   console.log(CLI_BANNER);
@@ -122,12 +123,15 @@ function printUsage(): void {
 
 🔧 Manual CLI Commands:
   npm run cli -- chat           Start interactive council chat
+  councilclaw start             Run service (webhook + Telegram); for always-on / at startup
+  councilclaw install --daemon  Install systemd service (OpenClaw-style persistence)
+  councilclaw uninstall         Remove all CouncilClaw data, config, and systemd service
   npm run cli -- configure      Interactive configuration wizard
   npm run cli -- models         List supported models
   npm run cli -- config init    Create config file
   npm run cli -- config show    Display current configuration
   npm run cli -- config set ... Update configuration
-  npm run cli -- telegram sync-commands  Force register Telegram slash commands
+  npm run cli -- telegram sync-commands  Re-register Telegram menu (optional; auto on setup and start)
   npm run cli -- telegram show-commands  Show configured Telegram commands
 
 📝 Configuration Examples:
@@ -171,7 +175,6 @@ async function ask(rl: readline.Interface, label: string, current: string): Prom
 }
 
 function printConfigSummary(cfg: CouncilClawSettings): void {
-  const models = cfg.councilModels.length > 0 ? cfg.councilModels.join(", ") : "None";
   const chairman = cfg.chairmanModel || "None";
   const channels = Object.entries(cfg.channelConfigs)
     .filter(([_, c]) => c.enabled)
@@ -241,7 +244,7 @@ async function testChannelConnection(channelId: string, token: string, commands?
     try {
       // Test connection with getMe
       const resp = await fetch(`https://api.telegram.org/bot${token}/getMe`);
-      const data = await resp.json() as any;
+      const data = (await resp.json()) as { ok?: boolean; description?: string; result?: { username?: string } };
       if (!data.ok) {
         return { ok: false, message: data.description || "Invalid token" };
       }
@@ -250,32 +253,14 @@ async function testChannelConnection(channelId: string, token: string, commands?
       const cmdsToRegister = commands && commands.length > 0 ? commands : DEFAULT_SETTINGS.telegramCommands;
       
       if (cmdsToRegister && cmdsToRegister.length > 0) {
-        try {
-          const commandObjects = cmdsToRegister.map((cmd) => ({
-            command: cmd.replace(/^\//, ""), // Remove leading slash
-            description: `CouncilClaw ${cmd} command`,
-          }));
-
-          console.log(`  📋 Registering ${commandObjects.length} commands...`);
-          const cmdResp = await fetch(`https://api.telegram.org/bot${token}/setMyCommands`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ commands: commandObjects }),
-          });
-          const cmdData = await cmdResp.json() as any;
-          if (!cmdData.ok) {
-            console.warn(`  ⚠️  Commands registration failed: ${cmdData.description}`);
-          } else {
-            console.log(`  ✓ Commands registered in Telegram bot menu`);
-          }
-        } catch (cmdErr: any) {
-          console.warn(`  ⚠️  Could not register commands: ${cmdErr.message}`);
-        }
+        const ok = await registerTelegramCommands(token, cmdsToRegister);
+        if (ok) console.log(`  ✓ Commands registered in Telegram bot menu`);
+        else console.warn(`  ⚠️  Commands registration failed (menu may still work after server start)`);
       }
 
-      return { ok: true, message: `Connected! Logged in as @${data.result.username}` };
-    } catch (err: any) {
-      return { ok: false, message: `Network error: ${err.message}` };
+      return { ok: true, message: `Connected! Logged in as @${data.result?.username ?? "user"}` };
+    } catch (err: unknown) {
+      return { ok: false, message: `Network error: ${err instanceof Error ? err.message : String(err)}` };
     }
   }
   // Add other channel tests here
@@ -395,10 +380,15 @@ async function runReconfiguration(rl: readline.Interface, cfg: CouncilClawSettin
       }
 
       await saveConfig(cfg);
+      if (section === "Channels" && cfg.channelConfigs?.telegram?.enabled && cfg.channelConfigs.telegram.token?.trim()) {
+        const cmdNames = cfg.telegramCommands?.length ? cfg.telegramCommands : ["/start", "/council", "/help", "/commands", "/status", "/models"];
+        const reg = await registerTelegramCommands(cfg.channelConfigs.telegram.token, cmdNames);
+        if (reg) console.log(`  ✓ Telegram commands registered (they will appear when you open the bot).`);
+      }
       console.log(`\n✅ ${section} updated. Press Enter to continue...`);
       await rl.question("");
-    } catch (err: any) {
-      console.error(`\n❌ Error updating ${section}: ${err.message || String(err)}`);
+    } catch (err: unknown) {
+      console.error(`\n❌ Error updating ${section}: ${err instanceof Error ? err.message : String(err)}`);
       console.log("Press Enter to continue...");
       await rl.question("");
     }
@@ -504,7 +494,7 @@ async function configSet(key: string, value: string): Promise<void> {
       }
       cfg.chairmanModel = value;
       break;
-    case "council_models":
+    case "council_models": {
       const parsed = validateModels(value.split(",").map((v) => v.trim()));
       if (!parsed.length) {
         console.error("Invalid council_models: no supported model IDs provided.");
@@ -518,6 +508,7 @@ async function configSet(key: string, value: string): Promise<void> {
       cfg.allowedChairmanModels = [...parsed];
       console.log(`✅ Council models set to ${parsed.length} models: ${parsed.join(", ")}`);
       break;
+    }
     case "blocked_shell_commands":
       cfg.blockedShellCommands = value.split(",").map(v => v.trim()).filter(Boolean);
       console.log(`✅ Blocked commands updated: ${cfg.blockedShellCommands.join(", ")}`);
@@ -545,6 +536,30 @@ async function main(): Promise<void> {
   const [cmd, ...args] = process.argv.slice(2);
 
   if (!cmd || cmd === "chat") return chatMode();
+
+  if (cmd === "start") {
+    const { runService } = await import("../run-service.js");
+    await runService();
+    return;
+  }
+
+  if (cmd === "install") {
+    if (args[0] === "--daemon") {
+      await installDaemon();
+      return;
+    }
+    console.log("Usage: councilclaw install --daemon   # Install systemd service for startup");
+    return;
+  }
+
+  if (cmd === "uninstall") {
+    if (args[0] === "--daemon" || !args[0]) {
+      await uninstallDaemon();
+      return;
+    }
+    console.log("Usage: councilclaw uninstall   # Remove all CouncilClaw files and configuration");
+    return;
+  }
 
   if (cmd === "configure") return configureWizard();
 
@@ -588,7 +603,8 @@ async function main(): Promise<void> {
       console.log(cfg.telegramCommands.join("\n"));
       return;
     }
-    console.log("Usage: npm run cli -- telegram <sync-commands|show-commands>");
+    console.log("Usage: councilclaw telegram <sync-commands|show-commands>");
+    console.log("  sync-commands  Register command menu (optional; auto-done on setup and when server starts)");
     return;
   }
 

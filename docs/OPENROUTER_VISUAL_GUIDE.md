@@ -236,7 +236,7 @@ CouncilClaw:
   ☐ npm install completed
   ☐ npm run setup ran successfully
   ☐ Pasted API key when asked
-  ☐ Ran npm run models (see 37 models list)
+  ☐ Ran npm run models (see 33 models list)
   ☐ npm run chat started without errors
 
 Testing:

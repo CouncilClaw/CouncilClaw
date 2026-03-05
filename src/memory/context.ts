@@ -4,7 +4,6 @@
  * Provides memory-augmented prompts that incorporate past decisions and user preferences
  */
 
-import { logger } from "../telemetry/logger.js";
 import type { MemoryContext, MemoryFact } from "./types.js";
 
 class MemoryContextBuilder {

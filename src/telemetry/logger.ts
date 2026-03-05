@@ -47,7 +47,9 @@ class Logger {
         error: {
           name: error.name,
           message: error.message,
-          code: (error as any).code,
+          code: (error as Error & { code?: unknown }).code !== undefined
+            ? String((error as Error & { code?: unknown }).code)
+            : undefined,
           stack: error.stack,
         },
       }),

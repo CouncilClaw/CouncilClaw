@@ -1,0 +1,27 @@
+# CouncilClaw systemd unit – run at startup (OpenClaw-style)
+# Install: sudo cp contrib/councilclaw.service /etc/systemd/system/
+#          sudo systemctl daemon-reload
+#          sudo systemctl enable councilclaw
+#          sudo systemctl start councilclaw
+# Then use Telegram/WhatsApp without starting anything manually.
+
+[Unit]
+Description=CouncilClaw – multi-model deliberation service
+Documentation=https://github.com/CouncilClaw/CouncilClaw
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Run from project directory so config paths and data/ work
+WorkingDirectory=/path/to/CouncilClaw
+ExecStart=/usr/bin/node dist/index.js
+# Or if installed globally: ExecStart=/usr/local/bin/councilclaw start
+
+Restart=on-failure
+RestartSec=10
+# Load API key from env file (optional)
+EnvironmentFile=-/etc/default/councilclaw
+
+[Install]
+WantedBy=multi-user.target

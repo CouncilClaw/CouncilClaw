@@ -1,6 +1,6 @@
 # CouncilClaw Telegram Commands
 
-CouncilClaw supports 19+ Telegram bot commands for managing sessions, configuring options, and checking status. These commands enable rich interaction with the council through Telegram.
+CouncilClaw supports 20+ Telegram bot commands for managing sessions, configuring options, and checking status. These commands enable rich interaction with the council through Telegram.
 
 ## Command Categories
 

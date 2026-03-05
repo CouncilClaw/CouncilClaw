@@ -56,7 +56,7 @@ async function waitForSingleChoice(
       resolve(idx);
     };
 
-    const onKey = (_str: string, key: any): void => {
+    const onKey = (_str: string, key: { ctrl?: boolean; name?: string }): void => {
       if (!key) return;
       if (key.ctrl && key.name === "c") {
         cleanup();
@@ -121,7 +121,7 @@ async function waitForProviderModelsSelection(
       }
     };
 
-    const onKey = (_str: string, key: any) => {
+    const onKey = (_str: string, key: { ctrl?: boolean; name?: string }) => {
       if (!key) return;
       if (key.ctrl && key.name === "c") {
         cleanup();
@@ -191,7 +191,7 @@ export async function selectModelsHierarchically(
         });
       };
 
-      const onKey = (_str: string, key: any) => {
+      const onKey = (_str: string, key: { ctrl?: boolean; name?: string }) => {
         if (!key) return;
         if (key.ctrl && key.name === "c") process.exit(0);
         if (key.name === "up") { cursor = (cursor - 1 + providerOptions.length) % providerOptions.length; render(); }

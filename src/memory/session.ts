@@ -58,7 +58,7 @@ class SessionManager {
     sessionId: string,
     role: "user" | "council" | "chairman" | "reviewer" | "system",
     content: string,
-    metadata?: Record<string, any>,
+    metadata?: Record<string, unknown>,
   ): Promise<ConversationMessage> {
     const store = getMemoryStore();
     const session = this.activeSessions.get(sessionId);

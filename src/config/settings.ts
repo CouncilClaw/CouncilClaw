@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import { z } from "zod";
-import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS, MIN_COUNCIL_MODELS } from "../llm/model-catalog.js";
+import { SUPPORTED_MODELS, MAX_COUNCIL_MODELS } from "../llm/model-catalog.js";
 
 export interface ChannelConfig {
   enabled: boolean;

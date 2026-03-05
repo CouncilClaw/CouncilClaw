@@ -8,6 +8,22 @@ An intelligent LLM-powered system that combines multiple model perspectives for 
 
 > ⚠️ **Experimental Build Notice**: CouncilClaw started as a vibe-coded prototype and is still evolving quickly. Validate outputs, review execution settings, and treat this release as fast-moving software—not a finalized enterprise platform.
 
+## ⚡ Quickest Start (3 Commands)
+
+```bash
+# 1. Clone and install globally
+git clone https://github.com/CouncilClaw/CouncilClaw.git && cd CouncilClaw
+npm install && npm install -g .
+
+# 2. Configure once
+councilclaw setup
+
+# 3. Start using
+councilclaw chat
+```
+
+That's it! You're ready to go. No additional steps needed.
+
 ## ✨ Features
 
 - **Multi-Model Consensus**: Harness opinions from multiple LLMs (OpenAI, Google, Anthropic, xAI, Meta)
@@ -22,92 +38,53 @@ An intelligent LLM-powered system that combines multiple model perspectives for 
 - **Input Validation**: Zod-based schemas ensure data integrity across API boundaries
 - **Structured Logging**: Debug-friendly logs with context and error tracking
 
-## 🚀 Quick Start
+## 🚀 Quick Command Reference
 
-### Installation
-```bash
-npm install
-npm run build
-```
-
-### Using CouncilClaw Commands
-
-After building, you can use the `councilclaw` command directly:
+### Core Commands
 
 ```bash
-# Use councilclaw command (recommended)
-councilclaw setup
-councilclaw chat
-councilclaw models
-
-# Or use npm run (alternative, from project directory)
-npm run setup
-npm run chat
-npm run models
+councilclaw chat                     # Start interactive chat (easiest way to use it)
+councilclaw setup                    # Configure: API key, models, channels (one time only)
+councilclaw models                   # List available 33 models by provider
+councilclaw config show              # View current configuration
+councilclaw config set <key> <value> # Update a config value
+councilclaw start                    # Run as service with webhook API + Telegram
 ```
 
-If `councilclaw` command isn't found, install globally:
+### Alternative (from project directory, without global install):
+
 ```bash
-npm install -g .
+npm run chat                         # Start interactive chat
+npm run setup                        # Interactive wizard
+npm run models                       # List models
+npm run cli -- config show           # View config
+npm run cli -- config set <key> <val> # Update config
+npm start                            # Run as service
 ```
 
-### First-Time Setup (Recommended)
+## 📋 First-Time Setup
+
+Run this **once** to configure everything:
+
 ```bash
 councilclaw setup
 ```
-This interactive wizard (inspired by OpenClaw) will guide you through:
-✓ **Risk acknowledgment** - Review important security/safety considerations
-✓ **[1/4] API Configuration** - Set OpenRouter API key and base URL
-✓ **[2/4] Model Selection** - Hierarchical selection (Provider → Versions)
-✓ **[3/4] Channel Setup** - Select and configure communication channels (Slack, Discord, etc.)
-✓ **[4/4] System Settings** - Port, blocked commands, and telegram bot commands
+
+You'll be guided through:
+1. ✓ **Risk acknowledgment** - Review security considerations
+2. ✓ **API Configuration** - Set OpenRouter API key (get free $5 at [openrouter.ai](https://openrouter.ai))
+3. ✓ **Model Selection** - Choose 1-8 models (hierarchical picker: Provider → Version)
+4. ✓ **Channel Setup** - Optional: Telegram, Slack, Discord, etc.
+5. ✓ **System Settings** - Port, blocklist, commands
 
 **Interactive Menu Features:**
-- Keyboard navigation in TTY: `↑/↓` to move, `Space` to select/unselect, `Enter` to confirm
-- **Hierarchical Model Selection**: Select by Provider (e.g., OpenAI, Google) then choose specific versions.
-- Automatic derivation of allowed chairman models from your council selection
-- Specific sub-wizards for configuring external channels like Telegram or Discord
+- Keyboard: `↑/↓` to move, `Space` to select, `Enter` to confirm
+- Hierarchical model selection by provider
+- Automatic chairman model derivation from your council
 
-### CLI Commands
+## 🧠 How It Works
 
-**Start Interactive Chat:**
-```bash
-councilclaw chat                     # Start council deliberation
-```
-
-**Setup & Configuration:**
-```bash
-councilclaw setup                    # 🌟 Interactive configuration wizard (Grouped Mode)
-councilclaw models                   # List 37 supported models by provider
-councilclaw config show              # Display current configuration
-councilclaw config set <key> <value> # Update configuration
-```
-
-**Alternative (using npm from project directory):**
-```bash
-npm run chat
-npm run setup
-npm run models
-npm run cli -- config show
-npm run cli -- config set <key> <value>
-```
-
-**Manual Configuration Keys:**
-- `blocked_shell_commands`: Comma-separated list of commands to block.
-- `telegram_commands`: Comma-separated list of commands for the Telegram bot.
-- `council_models`: Comma-separated list of model IDs.
-
-### Requirements
-- **OpenRouter API Key**: Optional. Without it, chat runs in offline/stub mode.
-- Run `councilclaw setup` (or `npm run setup`) to configure before first use
-
-### Graceful Exit
-- Type `exit` in chat mode to quit normally
-- Press `Ctrl+C` for graceful exit with "Goodbye!" message (no error dumps)
-
-### Chat Interface
-
-When you run `councilclaw chat` (or `npm run chat`), CouncilClaw displays council deliberations in a clear format. For **simple tasks**, it skips the multi-model deliberation phase to save time:
+When you run `councilclaw chat`, CouncilClaw deliberates:
 
 ```
 [INFO] Simple task detected - skipping council opinions
@@ -118,66 +95,80 @@ When you run `councilclaw chat` (or `npm run chat`), CouncilClaw displays counci
 ⏱️  450ms (decomp: 20ms | first: 0ms | review: 0ms | synthesis: 430ms)
 ```
 
-**Output Explained:**
-- **📋 Model Name**: Chairman model that synthesized the final answer
-- **⏱️ Timing**: For simple tasks, `first` and `review` phases will show `0ms`.
-- **💭 Dissent**: Alternative viewpoints from council members (Complex tasks only)
-- **⚠️ Errors**: Clear error messages when issues occur
+**For simple tasks**: Skips multi-model deliberation and goes straight to execution (fast ⚡)
+**For complex tasks**: Runs full council with multi-model opinions, peer review, and synthesis
 
+**Output contains:**
+- **📋 Model Name**: The chairman model that created the plan
+- **⏱️ Timing**: Breakdown of each phase (decomposition, first opinions, reviews, synthesis)
+- **💭 Dissent**: Minority opinions (complex tasks only)
+- **⚠️ Errors**: Clear error messages if something fails
 
-### Telegram Command Sync (if menu commands don't appear)
+## 🔌 Using CouncilClaw
+
+### Interactive Chat
+
 ```bash
-# show configured commands
-npm run cli -- telegram show-commands
-
-# force push command menu to Telegram
-npm run cli -- telegram sync-commands
+councilclaw chat
 ```
 
-If commands still don't show in Telegram:
-1. Open chat with your bot and send `/start`
-2. Restart Telegram app
-3. Re-run `npm run cli -- telegram sync-commands`
+Then just type your questions:
+```
+you> What is 2+2?
+you> Design a REST API for user authentication
+you> exit  # or Ctrl+C for graceful exit
+```
 
-### Webhook Server
+### As a Service (Webhook API)
+
+Run as an always-on service:
+
 ```bash
 export OPENROUTER_API_KEY="your-api-key"
-npm run dev:server
-curl http://localhost:8787/health
+councilclaw start
+```
 
-# Submit a task
+Submit tasks via HTTP:
+```bash
 curl -X POST http://localhost:8787/task \
   -H "Content-Type: application/json" \
   -d '{"text":"Build a REST API"}'
 ```
 
-### Configuration
+### Enable at System Startup
+
+So CouncilClaw starts automatically on reboot (no manual commands needed):
+
 ```bash
-# Save API credentials
-councilclaw config set openrouter_api_key <KEY>
-
-# Set council models
-councilclaw config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
-
-# Override chairman model per request: use "chairmanModel" in POST /task or --chairman flag in CLI
-
-# View current config
-councilclaw config show
+councilclaw install --daemon   # Creates systemd service
+# Then follow the sudo commands displayed
 ```
 
-**Model Selection Limits:**
-- Council models: minimum 0 (though reasoning requires models), maximum 8
-- Chairman model is automatically picked from the council
-- Starting with 2-3 models and adding diversity is recommended
-- Each additional model increases deliberation time (~500-1000ms per model for complex tasks)
+To uninstall everything:
+```bash
+councilclaw uninstall          # Removes all data, config, and service
+```
 
-**Config file location:**
-- `~/.config/councilclaw/config.json`
-- Override with `COUNCILCLAW_CONFIG_PATH` environment variable
+See full [startup guide](docs/STARTUP.md) for macOS (launchd) and manual setup.
+
+### Telegram Bot
+
+1. Configure during `councilclaw setup` → Channels → Telegram (paste bot token from @BotFather)
+2. Run `councilclaw start`
+3. Open Telegram, find your bot, send `/council your task`
+
+Commands are registered automatically. Full guide: [Telegram setup](docs/CHANNEL_CONNECTION.md#telegram).
 
 ## 📋 Supported Models
 
-CouncilClaw supports **37 models** across **8 providers**, giving you flexibility to choose models that match your needs while respecting cost and performance constraints.
+CouncilClaw supports **33 models** across **9 providers**:
+
+**OpenAI** (6) • **Google** (5) • **Anthropic** (4) • **xAI** (3) • **Meta** (6) • **Mistral** (3) • **Qwen** (3) • **Cohere** (2) • **Together** (1)
+
+View all:
+```bash
+councilclaw models
+```
 
 **Model Selection Limits:**
 - **Council Size**: Up to 8 models
@@ -199,350 +190,274 @@ CouncilClaw supports **37 models** across **8 providers**, giving you flexibilit
 - `x-ai/grok-4`, `x-ai/grok-3`, `x-ai/grok-2`
 
 **Meta** (6 models)
-- `meta-llama/llama-2-70b-chat`, `meta-llama/llama-3-8b`, `meta-llama/llama-3-70b`, `meta-llama/llama-3.1-8b`, `meta-llama/llama-3.1-70b`, `meta-llama/llama-3.3-70b`
+- `meta-llama/llama-2-70b-chat`, `meta-llama/llama-3-8b-instruct`, `meta-llama/llama-3-70b-instruct`, `meta-llama/llama-3.1-8b-instruct`, `meta-llama/llama-3.1-70b-instruct`, `meta-llama/llama-3.3-70b-instruct`
 
 **Mistral** (3 models)
-- `mistralai/mistral-7b`, `mistralai/mistral-large`, `mistralai/mixtral-8x7b`
+- `mistralai/mistral-7b-instruct`, `mistralai/mistral-large`, `mistralai/mixtral-8x7b-instruct`
 
 **Qwen** (3 models)
-- `qwen/qwen-110b`, `qwen/qwen-32b`, `qwen/qwen-14b`
+- `qwen/qwen-110b-chat`, `qwen/qwen-32b-chat`, `qwen/qwen-14b-chat`
 
-**Cohere & Others** (7 models)
-- `cohere/command-r`, `cohere/command-r-plus`, and more.
+**Cohere** (2 models)
+- `cohere/command-r`, `cohere/command-r-plus`
 
-**View Available Models:**
-```bash
-councilclaw models
-# (or: npm run models)
-```
-
-This lists all 37 models grouped by provider with tier classification (fast/balanced/premium).
+**Together AI** (1 model)
+- `togethercomputer/stripedhyena-nous-7b`
 
 See full [Model Catalog](docs/ARCHITECTURE.md) for technical specifications.
 
-## Communication Channels
+## ⚙️ Configuration & Advanced Setup
 
-Submit tasks via **13 different channels**, integrating CouncilClaw into your preferred platforms:
+### Manual Configuration
 
-**Enterprise Messaging:**
-- `slack` - Slack workspaces
-- `teams` - Microsoft Teams
-- `discord` - Discord servers
-- `telegram` - Telegram bots (19+ commands - see [Telegram Commands](docs/TELEGRAM_COMMANDS.md))
+Configure CouncilClaw after setup:
 
-**Decentralized & Legacy:**
-- `matrix` - Matrix Protocol (decentralized chat)
-- `irc` - IRC channels (legacy support)
+```bash
+# Set API key
+councilclaw config set openrouter_api_key YOUR_API_KEY
 
-**Direct Communication:**
-- `email` - Email deliverables
-- `whatsapp` - WhatsApp messages
-- `cli` - Command-line interface
+# Set council models (1-8 models, comma-separated)
+councilclaw config set council_models openai/gpt-4o-mini,google/gemini-2.0-flash,anthropic/claude-3.5-sonnet
 
-**API & Webhooks:**
-- `http` - HTTP endpoints
-- `grpc` - gRPC services
-- `webhook` - Generic webhooks
+# Set chairman model (must be from council)
+councilclaw config set chairman_model openai/gpt-4o-mini
 
-**Unclassified:**
-- `unknown` - Default/unmapped channels
+# View current configuration
+councilclaw config show
+```
 
-**Example: Submit via Slack:**
+### Configuration Limits
+
+- **Council models**: Minimum 1, Maximum 8 (more models = more time & cost)
+- **Chairman model**: Must be selected from your council
+- **Recommended**: Start with 2-3 models and add more only if needed
+- **Cost note**: Each additional model adds ~500-1000ms to complex task deliberation
+
+### Configuration Files
+
+```
+~/.config/councilclaw/
+├── config.json           # Your configuration (API keys, models, channels)
+├── traces/               # Execution traces
+│   └── *.jsonl          # Trace logs with timing metrics
+└── memory/               # Memory system (if enabled)
+    ├── facts_*.json
+    ├── messages_*.json
+    └── session_*.json
+```
+
+Override config path:
+```bash
+export COUNCILCLAW_CONFIG_PATH=/custom/path/config.json
+```
+
+### Environment Variables
+
+Set these in your shell or `.env` file before running CouncilClaw:
+
+```bash
+# API (from OpenRouter)
+export OPENROUTER_API_KEY="sk-or-xxx"
+export OPENROUTER_BASE_URL="https://openrouter.ai/api/v1"
+export OPENROUTER_MAX_RETRIES=2
+export OPENROUTER_RETRY_BASE_MS=500
+
+# Server
+export PORT=8787
+export COUNCILCLAW_MODE=demo  # or empty for service mode
+
+# Security
+export COUNCILCLAW_WEBHOOK_TOKEN="optional-bearer-token"
+export BLOCKED_SHELL_COMMANDS="shutdown,reboot,format,mkfs"
+
+# Debug
+export DEBUG=true
+```
+
+## 🌐 Communication Channels
+
+CouncilClaw supports **13 different channels** for integrating with your workflow.
+
+**Quick Setup:**
+- **Telegram**: Enabled during `councilclaw setup` (easiest - built-in bot)
+- **Others** (Slack, Discord, Teams, etc.): See [Channel Connection Guide](docs/CHANNEL_CONNECTION.md)
+
+**Supported channels:**
+`slack` • `discord` • `teams` • `telegram` • `matrix` • `irc` • `email` • `whatsapp` • `cli` • `http` • `webhook` • `grpc` • `unknown`
+
+## 🤖 Telegram Bot Commands
+
+CouncilClaw includes a built-in Telegram bot with **20+ commands**. See **[Complete Telegram Commands Guide](docs/TELEGRAM_COMMANDS.md)** for:
+- Core commands: `/start`, `/council`, `/help`
+- Session management: `/new`, `/reset`, `/compact`
+- Options: `/model`, `/thinking`, `/verbose`
+- Status: `/status`, `/usage`, `/whoami`
+
+**Quick setup during** `councilclaw setup` → Channels → Telegram (paste bot token from [@BotFather](https://t.me/BotFather))
+
+## 🔌 API Documentation
+
+CouncilClaw exposes a webhook API for programmatic task submission.
+
+**Quick example:**
 ```bash
 curl -X POST http://localhost:8787/task \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Design notification system",
+    "text": "Design a REST API",
+    "userId": "user-123",
     "channel": "slack",
-    "userId": "user-123"
+    "chairmanModel": "openai/gpt-4.1"
   }'
 ```
 
-## 🤖 Telegram Bot Commands
+**Response includes:**
+- Task ID
+- Council decision (complex vs simple)
+- Chairman's final plan
+- Peer reviews and dissent
+- Timing breakdown per phase
 
-CouncilClaw Telegram bot supports **20+ slash commands** for rich interaction:
+**Full API Reference:** [docs/API.md](docs/API.md)
 
-**Core:**
-- `/start` - Initialize bot
-- `/council` - Submit query to council
-- `/help` - Show available commands
-- `/commands` - List all commands
-
-**Session Management:**
-- `/new` - Start new session
-- `/session` - Manage session settings
-- `/reset` - Reset session context
-- `/stop` - Stop running council deliberation
-- `/compact` - Compress session context
-
-**Options:**
-- `/model` - View/set chairman model
-- `/chairman` - Switch chairman mid-session
-- `/models` - List available models
-- `/thinking` or `/t` - Set thinking level (shallow/normal/deep)
-- `/verbose` or `/v` - Toggle verbose mode
-
-**Status & Info:**
-- `/status` - Show current status
-- `/context` - Explain memory context system
-- `/whoami` - Show your user ID
-- `/usage` - Show usage statistics
-
-**[Complete Telegram Commands Guide →](docs/TELEGRAM_COMMANDS.md)**
-
-## 🔌 API Documentation
-
-
-Full API reference available at [docs/API.md](docs/API.md)
-
-### POST /task
-Submit a task for council deliberation.
-
-**Request:**
-```json
-{
-  "text": "Build a production-ready TypeScript API",
-  "userId": "user-123",
-  "channel": "slack",
-  "chairmanModel": "openai/gpt-4.1"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "ok": true,
-  "taskId": "550e8400-e29b-41d4-a716-446655440000",
-  "result": {
-    "decision": { "label": "complex", "score": 0.85 },
-    "chairmanPlan": { "finalChunks": [...] },
-    "reports": [...],
-    "trace": {
-      "timing": {
-        "decompositionMs": 150,
-        "firstPassMs": 3200,
-        "reviewMs": 2100,
-        "synthesisMs": 1800,
-        "executionMs": 5400,
-        "totalMs": 12650
-      }
-    }
-  }
-}
-```
-
-**Authentication:**
-```bash
-# Optional token-based auth
-curl -X POST http://localhost:8787/task \
-  -H "Authorization: Bearer $COUNCILCLAW_WEBHOOK_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"text":"build api tests"}'
-```
-
-**Rate Limiting:**
-- Default: 30 requests per 60 seconds per IP
-- Configure: `COUNCILCLAW_RATE_LIMIT`, `COUNCILCLAW_RATE_WINDOW_MS`
-- Returns `429 Too Many Requests` with `retryAfterMs`
-
-See [API Documentation](docs/API.md) for full endpoint specs and examples.
+- **Endpoints**: `/health`, `/task`
+- **Authentication**: Optional bearer token
+- **Rate Limiting**: 30 req/60s per IP (configurable)
+- **Error Handling**: Detailed error codes and context
 
 ## 🏗️ Architecture
+
+High-level pipeline:
 
 ```
 Input (CLI/API)
     ↓
-Complexity Routing (simple vs. complex)
+Complexity Routing (simple vs. complex task?)
     ↓
-Simple Task? → SKIP COUNCIL → Chairman Synthesis
+If Simple → Skip deliberation → Chairman executes directly (fast)
+If Complex → Decompose → Multi-model opinions → Peer review → Synthesize
     ↓
-Complex Task? → Task Decomposition → Multi-Model Deliberation → Peer Review → Chairman Synthesis
+Guarded Execution (blocklist safety policy)
     ↓
-Guarded Execution (Permissive with Blocklist)
-    ↓
-Trace Persistence (telemetry storage)
+Trace & Persist
 ```
 
-For detailed architecture, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**Key modules:**
+- `src/council/*`: Deliberation and synthesis
+- `src/llm/*`: Model management and API
+- `src/execution/*`: Safe command execution
+- `src/router/*`: Task complexity/type routing
+- `src/cli/*`: Interactive interface
+- `src/api/*`: Webhook server
+
+Full architecture details: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
 ## 🔒 Security & Validation
 
 ### Input Validation
-- **Zod Schemas**: All API inputs use Zod validation
-  - `TaskEnvelope` - task structure validation
-  - `WebhookPayload` - webhook request validation
-  - `RuntimeEnv` - environment configuration validation
-  - `CouncilClawConfig` - CLI config file validation
-- **Early Validation Errors**: Invalid inputs fail fast with clear error messages
-- **Type Safety**: Full TypeScript coverage with strict mode enabled
+- **Zod Schemas**: All inputs validated (task, webhook, config, environment)
+- **Type Safety**: Full TypeScript with strict mode
+- **Early Errors**: Invalid inputs fail fast with clear messages
 
 ### Command Execution
-- **Permissive with Safety Blocklist**: Most commands are allowed, but dangerous ones are blocked.
-- **Core Blocked Commands**: `shutdown`, `reboot`, `format`, `mkfs`, and dangerous `rm` patterns.
-- **User Blocked Commands**: Customize your blocklist during `councilclaw setup` (or `npm run setup`) or via `councilclaw config set blocked_shell_commands`.
-- **Chaining Allowed**: Commands like `mkdir test && cd test` are now supported as long as they don't contain dangerous patterns.
-- **Error Handling**: Captured and logged with exit codes
+- **Permissive with Blocklist**: Most commands allowed, dangerous ones blocked
+- **Blocked by default**: `shutdown`, `reboot`, `format`, `mkfs`, dangerous patterns
+- **Command chaining**: `mkdir test && cd test` works if no dangerous patterns
+- **Custom blocklist**: Configure during setup or via config
 
 ### API Security
-- **Bearer Token Auth**: Optional `COUNCILCLAW_WEBHOOK_TOKEN`
-- **IP Rate Limiting**: In-memory tracking per origin IP
-- **Content-Type Enforcement**: Rejects non-JSON payloads
-- **Payload Size Limits**: 1MB max request body
+- **Optional Bearer Auth**: `COUNCILCLAW_WEBHOOK_TOKEN`
+- **IP Rate Limiting**: Per-origin tracking
+- **Content-Type**: JSON only
+- **Payload Limits**: 1MB max
 
 ### Model Access Control
-- **Chairman Allowlist**: Restrict which models can act as chairman
-  - Configure: `ALLOWED_CHAIRMAN_MODELS` environment variable
-- **Council Model Validation**: Validates against built-in catalog
+- **Chairman Allowlist**: Restrict which models can synthesize
+- **Validation**: Against built-in catalog
 
-See [SECURITY.md](SECURITY.md) for security policy and vulnerability reporting.
+**Complete security policy:** [SECURITY.md](SECURITY.md)
 
 ## 📊 Observability & Debugging
 
-### Structured Logging
+### Debug Logging
 ```bash
-DEBUG=true npm run dev:server
+DEBUG=true councilclaw chat
+DEBUG=true npm start
 ```
 
-Logs include:
-- Request lifecycle (received, validated, executed, completed)
-- Task execution phases with timing metrics
-- Model API calls, retries, and failures
-- Validation errors with field context
-- Error stack traces for debugging
+### Execution Traces
 
-### Execution Tracing
-Every council run generates a trace with:
-- **Summary**: High-level outcome
-- **Winners**: Models whose proposals were selected
-- **Dissent**: Minority opinions and rationale
-- **Timing Breakdown**: Duration per execution phase
-- **Task Type**: Classification (coding, analysis, etc.)
-
-Traces are persisted to `data/council-traces.jsonl` for analysis:
+Every run creates a trace with timing, decisions, and dissent:
 ```bash
-# View latest traces
+# View traces as they're created
 tail -f data/council-traces.jsonl | jq .
 ```
 
-### Error Context
-All errors include:
-- **Error Code**: Machine-readable error classification
-- **Context**: Relevant fields/values that caused the error
-- **Stack Trace**: Full call stack for debugging
-- **Original Error**: Wrapped error details
+**Trace includes:**
+- Timing breakdown (decomposition, first opinions, reviews, synthesis)
+- Which models' proposals were selected
+- Minority opinions (dissent)
+- Task complexity decision
+- Execution errors (if any)
 
-## 🧪 Testing
+## 🧪 Testing & Development
 
 ```bash
-# Full quality gate (same checks as CI)
+# Full verification (typecheck, lint, test, build)
 npm run verify
 
-# Run all tests
+# Run tests
 npm test
-
-# Run specific test file
-npm test -- src/__tests__/integration.test.ts
 
 # Watch mode
 npm test -- --watch
+
+# Build
+npm run build
+
+# Type check only
+npm run typecheck
+
+# Lint only
+npm run lint
 ```
 
-**Test Coverage:**
-- Unit tests for routers, executors, and guardrails
-- Integration tests for council pipeline
-- Error handling and validation edge cases
-- Input validation schemas
-- Performance timing assertions
+**Test files:** [src/__tests__/](src/__tests__/) - unit and integration tests
 
-See test files in [src/__tests__/](src/__tests__/) for examples.
+## 📚 Documentation Index
 
-## 📚 Documentation
-
-- [API Reference](docs/API.md) - Full webhook API specification with examples
-- [Architecture Guide](docs/ARCHITECTURE.md) - System design and module responsibilities
-- [Security Policy](SECURITY.md) - Security controls, vulnerability reporting, hardening roadmap
-
-## 🔧 Configuration Reference
-
-### Environment Variables
-
-**Core:**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | (required) | OpenRouter API key |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | API endpoint |
-| `OPENROUTER_MAX_RETRIES` | `2` | Retry attempts on failure |
-| `OPENROUTER_RETRY_BASE_MS` | `500` | Backoff base delay |
-
-**Server:**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8787` | Webhook server port |
-| `COUNCILCLAW_MODE` | `library` | Execution mode (server/cli/library) |
-| `DEBUG` | `false` | Enable debug logging |
-
-**Security:**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `COUNCILCLAW_WEBHOOK_TOKEN` | (unset) | Optional bearer token for API auth |
-| `COUNCILCLAW_RATE_LIMIT` | `30` | Requests per window |
-| `COUNCILCLAW_RATE_WINDOW_MS` | `60000` | milliseconds |
-| `ALLOWED_CHAIRMAN_MODELS` | (builtin) | Comma-separated allowlist |
-| `BLOCKED_SHELL_COMMANDS` | `shutdown,reboot,format,mkfs` | Comma-separated blocklist |
-
-**Storage:**
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `COUNCIL_TRACE_PATH` | `data/council-traces.jsonl` | Execution trace storage |
-| `COUNCILCLAW_CONFIG_PATH` | `~/.config/councilclaw/config.json` | CLI config file |
-
-## 📈 Results & Timing
-
-Example execution trace showing performance breakdown:
-
-```json
-{
-  "trace": {
-    "timing": {
-      "decompositionMs": 145,
-      "firstPassMs": 3124,
-      "reviewMs": 2087,
-      "synthesisMs": 1834,
-      "executionMs": 5412,
-      "totalMs": 12602
-    }
-  }
-}
-```
-
-Typical timing ranges:
-- **Decomposition**: 100-300ms (task analysis)
-- **First Pass**: 2-5s (concurrent model queries)
-- **Review**: 1-3s (peer critique)
-- **Synthesis**: 1-3s (chairman refinement)
-- **Execution**: 0.5-10s (depends on task complexity)
+| Document | Purpose |
+|----------|---------|
+| [QUICK_START.md](QUICK_START.md) | Commands cheat sheet (copy-paste recipes) |
+| [docs/STARTUP.md](docs/STARTUP.md) | Run at boot (systemd/launchd) |
+| [docs/CHANNEL_CONNECTION.md](docs/CHANNEL_CONNECTION.md) | Connect Telegram, Slack, Discord, etc. |
+| [docs/API.md](docs/API.md) | Webhook API reference |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design & internals |
+| [docs/TELEGRAM_COMMANDS.md](docs/TELEGRAM_COMMANDS.md) | Complete Telegram bot commands |
+| [docs/MEMORY.md](docs/MEMORY.md) | Memory system guide |
+| [SECURITY.md](SECURITY.md) | Security policy & vulnerability reporting |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute |
 
 ## 🤝 Contributing
 
-Contributions are welcome.
+Contributions welcome! Before submitting a PR:
 
-Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR.
+1. **Add tests** for new behavior
+2. **Run** `npm run verify` (typecheck + lint + test + build)
+3. **Update docs** for user-visible changes
+4. **Keep safety defaults** intact
 
-Quick checklist:
-1. Add/update tests for behavior changes
-2. Run `npm run verify` before submitting
-3. Update docs for user-visible changes
-4. Keep safety defaults intact
+See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## 📄 License
 
-This project is licensed under **GNU GPL v3.0**. See [LICENSE](LICENSE).
+Licensed under **GNU GPL v3.0**. See [LICENSE](LICENSE) for details.
 
 ## 🔗 Links
 
-- [Repository](https://github.com/CouncilClaw/CouncilClaw)
-- [API Documentation](docs/API.md)
-- [Architecture Guide](docs/ARCHITECTURE.md)
-- [Security Policy](SECURITY.md)
-- Security contact: **elishaodida@proton.me**
-- [OpenRouter Models](https://openrouter.ai/models)
+- **GitHub**: [CouncilClaw/CouncilClaw](https://github.com/CouncilClaw/CouncilClaw)
+- **API Docs**: [docs/API.md](docs/API.md)
+- **Architecture**: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- **Security**: [SECURITY.md](SECURITY.md)
+- **OpenRouter**: [openrouter.ai](https://openrouter.ai)
+- **Report security issues**: elishaodida@proton.me

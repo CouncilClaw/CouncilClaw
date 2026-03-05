@@ -44,7 +44,6 @@ function validateTaskEnvelope(taskInput: TaskEnvelope): ValidatedTaskEnvelope {
 
 export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunResult> {
   const startTime = Date.now();
-  let phaseTime = startTime;
 
   try {
     // Validate input
@@ -163,7 +162,7 @@ export async function runCouncil(taskInput: TaskEnvelope): Promise<CouncilRunRes
       "Council run failed",
       error instanceof Error ? error : new Error(String(error)),
       {
-        taskId: (taskInput as any)?.id,
+        taskId: taskInput.id,
         totalDurationMs: totalMs,
       },
     );

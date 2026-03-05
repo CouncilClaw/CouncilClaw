@@ -49,7 +49,7 @@ Submit a task for council deliberation and execution.
 {
   "text": "your task description",
   "userId": "optional-user-id",
-  "channel": "slack|discord|telegram|whatsapp|email|unknown",
+  "channel": "slack|discord|telegram|whatsapp|email|teams|matrix|irc|http|grpc|cli|webhook|unknown",
   "chairmanModel": "optional-model-id"
 }
 ```
@@ -64,12 +64,7 @@ Submit a task for council deliberation and execution.
 | `chairmanModel` | string | ✗ | Override chairman model (must be in allowlist) |
 
 **Valid Channels:**
-- `slack`
-- `discord`
-- `telegram`
-- `whatsapp`
-- `email`
-- `unknown`
+- `slack`, `discord`, `telegram`, `whatsapp`, `email`, `teams`, `matrix`, `irc`, `http`, `grpc`, `cli`, `webhook`, `unknown`
 
 **Example Request:**
 ```bash
@@ -171,7 +166,7 @@ export OPENROUTER_API_KEY="your-api-key"
 export COUNCILCLAW_WEBHOOK_TOKEN="your-token"
 export DEBUG=true
 
-npm run dev:server
+npm start
 ```
 
 ---
@@ -243,7 +238,7 @@ Example error:
 
 Monitor server logs with:
 ```bash
-DEBUG=true npm run dev:server
+DEBUG=true npm start
 ```
 
 Logs include:

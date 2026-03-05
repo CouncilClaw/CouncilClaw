@@ -23,7 +23,6 @@ import { logger } from "../telemetry/logger.js";
 import { getMemoryStore } from "./store.js";
 import { getFactExtractor } from "./extractor.js";
 import { getContextBuilder } from "./context.js";
-import { getSessionManager } from "./session.js";
 import type { TaskEnvelope, CouncilRunResult } from "../types/contracts.js";
 import type { MemoryContext } from "./types.js";
 

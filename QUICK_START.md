@@ -1,5 +1,7 @@
 # CouncilClaw Quick Reference Card
 
+💡 **Latest:** `councilclaw uninstall` now removes all CouncilClaw data and configuration—not just the systemd service.
+
 **Repository:** https://github.com/CouncilClaw/CouncilClaw
 
 ## First Time Setup (2 minutes)
@@ -74,7 +76,7 @@ npm run models
 npm run build                        # Build TypeScript
 npm run typecheck                    # Check types
 npm run test                         # Run tests
-npm run dev:server                   # Start webhook API server
+npm run dev:serve                    # Start webhook API server in development
 npm run dev                          # Development mode
 ```
 
@@ -234,7 +236,7 @@ npm run verify
 
 ```bash
 # Start server
-npm run dev:server
+npm run dev:serve
 # Server listens on http://localhost:8787
 
 # Check health

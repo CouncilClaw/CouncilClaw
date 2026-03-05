@@ -1,6 +1,7 @@
 {
   "name": "councilclaw",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
   "description": "CouncilClaw: Multi-model deliberation, single-agent execution.",
   "main": "dist/index.js",
@@ -9,8 +10,10 @@
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "verify": "npm run typecheck && npm run test && npm run build",
-    "dev:server": "COUNCILCLAW_MODE=server tsx src/index.ts",
+    "lint": "eslint src --max-warnings 0",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "prepare": "npm run build",
+    "dev:serve": "tsx src/index.ts",
     "cli": "tsx src/cli/main.ts",
     "setup": "tsx src/cli/main.ts configure",
     "chat": "tsx src/cli/main.ts chat",
@@ -25,9 +28,12 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@eslint/js": "^9.15.0",
     "@types/node": "^24.0.0",
+    "eslint": "^9.15.0",
     "tsx": "^4.19.0",
     "typescript": "^5.8.0",
+    "typescript-eslint": "^8.15.0",
     "vitest": "^2.1.8"
   },
   "bin": {

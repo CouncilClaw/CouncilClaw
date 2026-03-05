@@ -67,6 +67,8 @@ export class OpenRouterLlmProvider implements LlmProvider {
     const prompt = [
       "You are the Chairman model in an anonymous LLM council.",
       "Refine the rationale and fallback section only.",
+      "AVAILABLE TOOLS: cmd: <command>, browse: <url>.",
+      "Ensure the rationale explains how these tools will be used if present in chunks.",
       "Do not change chunk IDs or execution order.",
       memoryContext ? `\n${memoryContext}` : "",
       "Return strict JSON with keys: rationale (string), fallbacks (string[]).",
@@ -127,11 +129,14 @@ export class OpenRouterLlmProvider implements LlmProvider {
     const prompt = [
       "You are part of an anonymous model council.",
       "Return a concise execution proposal for this chunk.",
+      "TOOLS AVAILABLE:",
+      "  - cmd: <shell command>  (for system operations, file management, etc.)",
+      "  - browse: <url>         (to fetch and read web content)",
       memoryContext ? `\n${memoryContext}` : "",
       `Task: ${task.text}`,
       `Chunk goal: ${chunk.goal}`,
       `Expected output: ${chunk.expectedOutput}`,
-      "Format: 3-6 bullet points.",
+      "Format: 3-6 bullet points. Each point should describe an action or a tool use (e.g. 'cmd: ls -la').",
     ].join("\n");
 
     return this.askRaw(model, prompt);

@@ -37,6 +37,7 @@ npm run verify
 
 This runs:
 - typecheck
+- lint
 - tests
 - build
 

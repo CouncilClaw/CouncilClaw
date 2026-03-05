@@ -6,7 +6,7 @@
 
 import { logger } from "../telemetry/logger.js";
 import type { CouncilRunResult, TaskEnvelope } from "../types/contracts.js";
-import type { ExtractedFacts, MemoryFact } from "./types.js";
+import type { MemoryFact } from "./types.js";
 
 interface ExtractionContext {
   taskId: string;
@@ -152,7 +152,7 @@ class FactExtractor {
   /**
    * Extract specific decision statements from text
    */
-  private extractDecisions(userQuery: string, councilResponse: string): string[] {
+  private extractDecisions(_userQuery: string, councilResponse: string): string[] {
     const decisions: string[] = [];
 
     // Pattern matching for common decision phrases

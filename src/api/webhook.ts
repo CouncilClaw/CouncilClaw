@@ -43,7 +43,7 @@ function readJson(req: IncomingMessage): Promise<WebhookPayload> {
       try {
         const body = Buffer.concat(chunks).toString("utf8").trim();
         resolve(body ? (JSON.parse(body) as WebhookPayload) : {});
-      } catch (err) {
+      } catch {
         reject(new HttpError(400, "Invalid JSON payload"));
       }
     });
